@@ -1,0 +1,52 @@
+{
+  "bougies": [
+    {
+      "nom": "Lavande",
+      "parfum": "fleurs de lavande",
+      "poids": 180,
+      "heures": 35,
+      "cout": 4.2,
+      "prix": 12.9
+    },
+    {
+      "nom": "Vanille",
+      "parfum": "vanille douce",
+      "poids": 180,
+      "heures": 35,
+      "cout": 4.0,
+      "prix": 12.9
+    },
+    {
+      "nom": "Cedre",
+      "parfum": "bois de cedre",
+      "poids": 220,
+      "heures": 45,
+      "cout": 5.1,
+      "prix": 15.9
+    },
+    {
+      "nom": "Agrumes",
+      "parfum": "orange et citron",
+      "poids": 180,
+      "heures": 35,
+      "cout": 4.1,
+      "prix": 12.9
+    },
+    {
+      "nom": "Pin",
+      "parfum": "foret de pins",
+      "poids": 220,
+      "heures": 45,
+      "cout": 5.0,
+      "prix": 15.9
+    },
+    {
+      "nom": "Coton",
+      "parfum": "linge propre",
+      "poids": 140,
+      "heures": 28,
+      "cout": 3.4,
+      "prix": 9.9
+    }
+  ]
+}

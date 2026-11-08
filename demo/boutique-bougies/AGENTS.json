@@ -1,0 +1,56 @@
+{
+  "agents": [
+    {
+      "id": "veille-bougies",
+      "nom": "Veille des tendances",
+      "role": "Cherche chaque matin les tendances du marche des bougies et resume les trouvailles.",
+      "type": "planifie",
+      "horaires": [
+        "08:30"
+      ],
+      "fichier": "documents/idees.md",
+      "etat": "actif"
+    },
+    {
+      "id": "fiches",
+      "nom": "Rédaction des fiches produits",
+      "role": "Ecrit une fiche claire pour chaque bougie du catalogue.",
+      "type": "sous-agent",
+      "horaires": [],
+      "fichier": "produits/bougies/catalogue.json",
+      "etat": ""
+    },
+    {
+      "id": "controle-prix",
+      "nom": "Contrôle des prix",
+      "role": "Verifie que chaque prix couvre le cout de fabrication avec la marge voulue.",
+      "type": "planifie",
+      "horaires": [
+        "12:00",
+        "18:00"
+      ],
+      "fichier": "_outils/calculer_prix.py",
+      "etat": "actif"
+    },
+    {
+      "id": "sauvegarde",
+      "nom": "Sauvegarde des fichiers",
+      "role": "Copie le dossier de la boutique dans une archive datee.",
+      "type": "planifie",
+      "horaires": [
+        "22:00"
+      ],
+      "fichier": "_outils/sauvegarder.py",
+      "etat": "inactif"
+    },
+    {
+      "id": "premiere-page",
+      "nom": "Création de la page d'accueil",
+      "role": "A ecrit la premiere version de la page d'accueil de la boutique.",
+      "type": "sous-agent",
+      "horaires": [],
+      "fichier": "site/index.html",
+      "etat": "termine"
+    }
+  ]
+}

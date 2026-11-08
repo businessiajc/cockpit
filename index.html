@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cockpit</title>
+<style>
+:root{--bg:#f3f6f5;--card:#ffffff;--text:#16211f;--muted:#5b6b68;--line:#dbe4e1;--accent:#0b5d56;--accent-soft:#e3f1ef;--accent-text:#ffffff;
+--warn-bg:#fff1dc;--warn-line:#f0b46a;--warn-text:#7a4300;--shadow:0 1px 2px rgba(16,40,36,.06),0 8px 24px rgba(16,40,36,.07);--ok:#0b8a5a;--soft:#eef3f2}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1514;--card:#182120;--text:#e7efed;--muted:#9bb0ac;--line:#2a3735;--accent:#35b3a4;--accent-soft:#17302d;--accent-text:#06211e;
+--warn-bg:#3a2a12;--warn-line:#b9803a;--warn-text:#ffd9a3;--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);--ok:#4ad19a;--soft:#1d2928}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:16px/1.5 "Segoe UI",system-ui,sans-serif;display:flex;flex-direction:column;overflow:hidden}
+header{display:flex;align-items:center;gap:20px;padding:14px 28px;background:var(--card);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:20px;letter-spacing:.01em}
+.logo svg{color:var(--accent)}
+nav{display:flex;gap:10px;flex-wrap:wrap}
+nav button{display:flex;align-items:center;gap:10px;font:inherit;font-weight:600;font-size:17px;padding:12px 24px;border-radius:14px;border:1px solid var(--line);background:var(--soft);color:var(--text);cursor:pointer;transition:background .15s,transform .1s}
+nav button:hover{background:var(--accent-soft)}
+nav button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-text);box-shadow:var(--shadow)}
+nav button:focus-visible,.btn:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+#conn{margin-left:auto;font-size:14px;color:var(--muted);display:flex;align-items:center;gap:8px}
+#conn i{width:10px;height:10px;border-radius:50%;background:var(--ok);display:inline-block}
+#conn.off i{background:#c0392b}
+main{flex:1;min-height:0;position:relative}
+section.tab{position:absolute;inset:0;display:none;overflow:auto;padding:28px}
+section.tab.on{display:block}
+.wrap{max-width:1000px;margin:0 auto;display:flex;flex-direction:column;gap:24px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:24px}
+.card h2{margin:0 0 4px;font-size:20px}
+.card .sub{color:var(--muted);margin:0 0 16px;font-size:15px}
+/* etat */
+#state{display:flex;align-items:center;gap:20px;padding:28px}
+#state .dot{width:22px;height:22px;border-radius:50%;background:#9aa8a5;flex:none}
+#state.work{background:var(--accent);color:var(--accent-text);border-color:var(--accent)}
+#state.work .dot{background:#7dffd9;animation:pulse 1.8s ease-in-out infinite}
+#state h1{margin:0;font-size:30px;line-height:1.2}
+#state p{margin:4px 0 0;opacity:.85}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(125,255,217,.6)}50%{box-shadow:0 0 0 12px rgba(125,255,217,0)}}
+.counters{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px}
+.counter{display:flex;flex-direction:column;gap:6px;padding:20px}
+.counter .ic{color:var(--accent);display:flex}
+.counter b{font-size:34px;line-height:1;font-variant-numeric:tabular-nums}
+.counter span{color:var(--muted);font-size:15px}
+.counter.bad b{color:#c0662b}
+#banner{background:var(--warn-bg);border:1px solid var(--warn-line);color:var(--warn-text);border-radius:16px;padding:16px 20px;display:none;gap:14px;align-items:flex-start}
+#banner.on{display:flex}
+#banner b{display:block;font-size:17px}
+#banner p{margin:2px 0 0}
+/* plan bleu */
+.bp{background-color:#0f3d91;background-image:linear-gradient(rgba(255,255,255,.11) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.11) 1px,transparent 1px),linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:60px 60px,60px 60px,12px 12px,12px 12px;color:#fff;border:1px solid rgba(255,255,255,.55)}
+#plancard{border-radius:20px;padding:24px;cursor:pointer;box-shadow:var(--shadow);transition:transform .15s}
+#plancard:hover{transform:translateY(-2px)}
+#plancard h2{margin:0;font-size:20px;letter-spacing:.08em;text-transform:uppercase}
+#plancard .sub{color:#d6e4ff;margin:2px 0 14px;font-size:15px}
+#plancard .more{color:#d6e4ff;font-size:14px;margin-top:10px;text-align:right}
+.empty{color:var(--muted);padding:18px 4px}
+#plancard .empty{color:#d6e4ff}
+/* chronologie */
+.row{display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row .ic{flex:none;width:38px;height:38px;border-radius:12px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center}
+.row.error .ic{background:var(--warn-bg);color:var(--warn-text)}
+.row .tx{flex:1;min-width:0}
+.row .ph{word-break:break-word}
+.row .tm{color:var(--muted);font-size:14px;font-variant-numeric:tabular-nums;flex:none;padding-top:2px}
+.dbtn{font:inherit;font-size:13px;color:var(--muted);background:none;border:1px solid var(--line);border-radius:8px;padding:2px 10px;margin-top:6px;cursor:pointer}
+.dbtn:hover{background:var(--soft)}
+.det{margin:8px 0 0;padding:10px 12px;background:var(--soft);border-radius:10px;font:13px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-word;color:var(--muted)}
+/* agents */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px;max-width:1100px;margin:0 auto}
+.acard{cursor:pointer;display:flex;flex-direction:column;gap:10px;transition:transform .15s;text-align:left;font:inherit;color:inherit}
+.acard:hover{transform:translateY(-2px)}
+.acard h3{margin:0;font-size:21px;line-height:1.25}
+.acard .role{color:var(--muted);margin:0}
+.pill{align-self:flex-start;font-size:14px;font-weight:600;padding:4px 14px;border-radius:99px;display:inline-flex;align-items:center;gap:8px}
+.pill i{width:9px;height:9px;border-radius:50%;background:currentColor}
+.pill.running{background:#dff5e8;color:#0a6b42}.pill.done{background:#e4ebf7;color:#254a8a}.pill.planned{background:#e3f1ef;color:#0b5d56}
+.pill.failed{background:#fde3e0;color:#9b2a1d}.pill.paused,.pill.unknown{background:#ececec;color:#555}
+@media (prefers-color-scheme:dark){.pill.running{background:#123b29;color:#7be3b0}.pill.done{background:#1b2a47;color:#9ec0ff}.pill.planned{background:#17302d;color:#7fe0d2}.pill.failed{background:#4a1d19;color:#ffb1a8}.pill.paused,.pill.unknown{background:#2a3331;color:#b9c6c3}}
+.acard .meta{color:var(--muted);font-size:14px}
+.help{max-width:700px;margin:40px auto;text-align:center}
+.help code{background:var(--soft);padding:2px 8px;border-radius:6px;font-size:14px}
+/* cerveau */
+#brain{padding:0;overflow:hidden;--bg:#070d1c;--card:#0e1730;--text:#e6ecff;--muted:#9fb0d8;--line:#22305a;--soft:#13204a;--accent:#35b3a4;--accent-soft:#102b3a;--accent-text:#06211e;background:#070d1c;color:var(--text)}
+#brain.on{display:grid;grid-template-columns:270px minmax(0,1fr) 330px}
+.side{display:flex;flex-direction:column;min-height:0;background:var(--card);border-right:1px solid var(--line)}
+.side.right{border-right:0;border-left:1px solid var(--line);overflow:auto}
+.side h2{margin:0;padding:16px 18px 8px;font-size:16px;letter-spacing:.04em}
+.side input[type=search]{margin:0 14px 10px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:#0a1126;color:var(--text);font:inherit;font-size:15px}
+#tree{flex:1;overflow:auto;padding:0 6px 14px;font-size:15px}
+.tn{display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:8px;cursor:pointer;white-space:nowrap}
+.tn:hover{background:var(--soft)}
+.tn.sel{background:#1b3a7a;color:#fff}
+.tn .chev{width:18px;height:18px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--muted);transition:transform .12s}
+.tn .chev.open{transform:rotate(90deg)}
+.tn .zd{width:9px;height:9px;border-radius:50%;flex:none}
+.tn .lb{overflow:hidden;text-overflow:ellipsis}
+#stage{position:relative;min-width:0;min-height:0}
+#bg,#cv{position:absolute;inset:0;width:100%;height:100%;display:block}#bg{pointer-events:none}#cv{cursor:grab;touch-action:none}
+#cv.drag{cursor:grabbing}
+#ctl{position:absolute;top:14px;left:14px;right:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;pointer-events:none}
+#ctl>*{pointer-events:auto}
+.chip{font:inherit;font-size:14px;padding:7px 16px;border-radius:99px;border:1px solid var(--line);background:rgba(14,23,48,.85);color:var(--text);cursor:pointer}
+.chip.on{background:var(--accent);border-color:var(--accent);color:var(--accent-text);font-weight:600}
+#hint{position:absolute;bottom:10px;left:14px;right:14px;font-size:13px;color:#c9d6f5;pointer-events:none;background:rgba(5,10,24,.72);border-radius:10px;padding:6px 12px}
+#det{padding:0 18px 18px}
+#det h3{margin:0;font-size:20px;line-height:1.25;word-break:break-word}
+#det .tag{display:inline-block;margin:8px 0;font-size:13px;padding:2px 12px;border-radius:99px;background:var(--soft);color:var(--muted)}
+#det p{margin:6px 0}
+#det .kv{color:var(--muted);font-size:14px}
+#det pre{background:#0a1126;border:1px solid var(--line);border-radius:10px;padding:10px;font:12px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-word;max-height:300px;overflow:auto;color:#cfdaf8}
+.btn{font:inherit;font-weight:600;padding:10px 18px;border-radius:12px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-text);cursor:pointer;margin:8px 0}
+/* fenetre plan bleu */
+#modal{position:fixed;inset:0;background:rgba(3,10,30,.65);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}
+#modal.on{display:flex;animation:fade .3s ease-out both}
+#dlg{width:min(1000px,96vw);max-height:92vh;overflow:auto;border-radius:18px;padding:26px 28px;animation:pop .3s ease-out both;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+@keyframes pop{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){#modal.on,#dlg,#state.work .dot{animation:none}}
+#dlg header{background:none;border:0;padding:0;display:flex;align-items:flex-start;gap:16px}
+#dlg h2{margin:0;font-size:26px;letter-spacing:.1em;text-transform:uppercase;line-height:1.2;word-break:break-word}
+#dlg .st{color:#d6e4ff;font-size:15px;margin-top:4px;letter-spacing:.04em}
+#dlg .close{margin-left:auto;flex:none;font:inherit;font-weight:600;color:#fff;background:transparent;border:1.5px solid #fff;border-radius:10px;padding:8px 18px;cursor:pointer}
+#dlg .close:hover{background:rgba(255,255,255,.15)}
+#dlg .body{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:22px;margin-top:20px;align-items:start}
+@media (max-width:820px){#dlg .body{grid-template-columns:1fr}}
+#dlg .frame{border:1.5px solid rgba(255,255,255,.7);border-radius:6px;padding:12px;background:rgba(5,25,70,.35)}
+#dlg .frame h4{margin:0 0 8px;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#d6e4ff}
+#dlg p{margin:0 0 10px;font-size:16px;color:#fff}
+#dlg ul{margin:0;padding:0;list-style:none;font-size:15px}
+#dlg li{padding:5px 0;border-top:1px dashed rgba(255,255,255,.35);display:flex;gap:10px;justify-content:space-between}
+#dlg li:first-child{border-top:0}
+#dlg li span{color:#d6e4ff;font-size:13px;flex:none}
+#dlg svg text{font-family:"Segoe UI",system-ui,sans-serif}
+#dlg h5{margin:10px 0 2px;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#9cc4ff}
+#dlg li span{flex:0 1 55%;text-align:right}
+.abtn{font:inherit;font-weight:600;color:#fff;background:rgba(255,255,255,.12);border:1.5px solid #fff;border-radius:10px;padding:9px 16px;cursor:pointer;margin:8px 8px 0 0}
+.abtn:hover{background:rgba(255,255,255,.25)}
+.kvl{color:#d6e4ff;font-size:13px}
+.codescroll{display:flex;max-height:58vh;overflow:auto;scroll-behavior:smooth;background:#081c4a;border:1px solid rgba(255,255,255,.4);border-radius:8px}
+.codescroll pre{margin:0;padding:10px 0;font:13px/1.55 ui-monospace,Consolas,"Cascadia Mono",monospace}
+.gut{position:sticky;left:0;text-align:right;padding:10px 10px!important;color:#9cc4ff;background:#0a2355;border-right:1px solid rgba(255,255,255,.3);user-select:none}
+.code{padding:10px 14px!important;color:#fff;white-space:pre;tab-size:4;flex:1 0 auto}
+.tk{color:#9cc4ff;font-weight:700}.ts{color:#ffd9a0}.tc{color:#a9bbdd;font-style:italic}
+@media (max-width:1000px){#brain.on{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) 38vh}#brain .side:not(.right){display:none}.side.right{border-left:0;border-top:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo" id="logo"></div>
+  <nav>
+    <button id="t-today" class="on" data-tab="today"></button>
+    <button id="t-agents" data-tab="agents"></button>
+    <button id="t-brain" data-tab="brain"></button>
+  </nav>
+  <div id="conn"><i></i><span>Connexion...</span></div>
+</header>
+
+<div id="welcome" style="display:none;position:fixed;inset:0;z-index:50;background:var(--bg);align-items:center;justify-content:center;padding:20px">
+  <div class="card" style="max-width:560px;width:100%;padding:28px">
+    <h1 style="margin:0 0 8px">Bienvenue dans Cockpit</h1>
+    <p class="sub">Cockpit n'a pas pu deviner quel dossier suivre. Indiquez le dossier de travail de votre agent (celui où vous lancez Claude Code), par exemple <code>C:\Users\Moi\Documents\MonProjet</code>.</p>
+    <p class="sub">Cockpit ne fait que lire les fichiers de ce dossier. Rien n'est envoyé sur Internet. Votre choix est mémorisé dans le fichier <code>config.json</code>, à côté du programme.</p>
+    <input type="text" id="wdir" placeholder="Dossier à suivre" aria-label="Dossier à suivre" style="width:100%;padding:10px;margin:10px 0;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text);font-size:15px">
+    <p id="werr" style="color:var(--warn-text);min-height:1.2em;margin:0 0 8px"></p>
+    <button id="wgo" style="padding:10px 18px;border:0;border-radius:8px;background:var(--accent);color:var(--accent-text);font-size:15px;cursor:pointer">Valider</button>
+  </div>
+</div>
+<main>
+  <section id="today" class="tab on"><div class="wrap">
+    <div id="state" class="card"><span class="dot"></span><div><h1>Chargement...</h1><p></p></div></div>
+    <div id="banner"><span id="banic"></span><div><b>Un problème est survenu</b><p id="bantx"></p></div></div>
+    <div class="counters" id="counters"></div>
+    <div id="plancard" class="bp" tabindex="0" role="button"><h2>Le plan du moment</h2><p class="sub" id="plansub"></p><div id="planbox"></div><div class="more">Cliquer pour voir le détail</div></div>
+    <div class="card"><h2>Ce qui vient de se passer</h2><p class="sub">Les dernières actions, en phrases simples. Le plus récent en haut.</p><div id="tl"></div></div>
+  </div></section>
+  <section id="agents" class="tab"><div id="agbox"></div></section>
+  <section id="brain" class="tab">
+    <aside class="side"><h2>Arborescence</h2><input type="search" id="q" placeholder="Chercher un fichier ou un dossier" aria-label="Chercher"><div id="tree"></div></aside>
+    <div id="stage"><canvas id="bg"></canvas><canvas id="cv"></canvas>
+      <div id="ctl"><button class="chip on" data-f="md">Documents</button><button class="chip on" data-f="py">Programmes</button><button class="chip on" data-f="json">Données</button><button class="chip" id="collapse">Tout replier</button></div>
+      <div id="hint">Clic gauche maintenu : déplacer la vue. Clic molette maintenu : tourner autour de l'élément choisi. Molette : zoomer vers le curseur. Clic sur un point : l'ouvrir ou le fermer. Double-clic : schéma.</div></div>
+    <aside class="side right"><h2>Détails</h2><div id="det"><p class="kv">Cliquez sur un point de la carte ou sur un élément de l'arborescence.</p></div></aside>
+  </section>
+</main>
+<div id="modal" aria-hidden="true"><div id="dlg" class="bp" role="dialog" aria-modal="true" aria-labelledby="mtitle"></div></div>
+
+<script>
+"use strict";
+/* ---------- outils ---------- */
+const NS = "http://www.w3.org/2000/svg";
+const $ = (s, r = document) => r.querySelector(s);
+function h(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  for (const k in props || {}) { const v = props[k];
+    if (k === "class") e.className = v; else if (k === "text") e.textContent = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else if (v !== false && v != null) e.setAttribute(k, v === true ? "" : v); }
+  for (const c of kids.flat()) { if (c == null) continue; e.append(c.nodeType ? c : document.createTextNode(c)); }
+  return e;
+}
+function sv(tag, props, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in props || {}) e.setAttribute(k, props[k]);
+  if (text != null) e.textContent = text;
+  return e;
+}
+const ICONS = {
+  write: "M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z", read: "M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5z",
+  find: "M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.3-4.3", git: "M6 3v12M18 9a3 3 0 100-6 3 3 0 000 6zM6 21a3 3 0 100-6 3 3 0 000 6zM18 9c0 6-12 3-12 6",
+  web: "M12 21a9 9 0 100-18 9 9 0 000 18zM3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18", test: "M9 3h6M10 3v6l-5 9a2 2 0 002 3h10a2 2 0 002-3l-5-9V3",
+  cmd: "M4 17l6-5-6-5M12 19h8", agent: "M5 8h14v10H5zM12 8V4M9 13h.01M15 13h.01M9 18v3M15 18v3", say: "M21 12a8 8 0 01-11.5 7.2L4 20l1-4.5A8 8 0 1121 12z",
+  user: "M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0", error: "M12 3l10 18H2zM12 10v5M12 18h.01",
+  plan: "M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2", other: "M12 21a9 9 0 100-18 9 9 0 000 18zM12 8v4l3 2",
+  bolt: "M13 2L4 14h7l-1 8 9-12h-7z", file: "M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8zM14 3v5h5",
+  folder: "M3 6a2 2 0 012-2h4l2 2h8a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z", today: "M12 21a9 9 0 100-18 9 9 0 000 18zM12 7v5l3 2",
+  cube: "M12 2l9 5v10l-9 5-9-5V7zM3 7l9 5 9-5M12 12v10", chev: "M9 6l6 6-6 6", logo: "M4 18V8l8-5 8 5v10M9 18v-6h6v6"
+};
+function icon(name, size = 22) {
+  const s = sv("svg", { viewBox: "0 0 24 24", width: size, height: size, fill: "none", stroke: "currentColor", "stroke-width": "1.8", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" });
+  s.append(sv("path", { d: ICONS[name] || ICONS.other })); return s;
+}
+const fmtTime = iso => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }); };
+const fmtDate = t => new Date(t * 1000).toLocaleString("fr-FR", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
+const fmtSize = n => n < 1024 ? n + " octets" : n < 1048576 ? (n / 1024).toFixed(1).replace(".", ",") + " Ko" : (n / 1048576).toFixed(1).replace(".", ",") + " Mo";
+function fmtAge(sec) {
+  const m = Math.floor(sec / 60);
+  if (m < 1) return "moins d'une minute";
+  if (m < 60) return m + " min";
+  if (m < 1440) return Math.floor(m / 60) + " h " + String(m % 60).padStart(2, "0");
+  return Math.floor(m / 1440) + " j";
+}
+let AGENT = "L'agent";
+async function api(path) { const r = await fetch(path, { cache: "no-store" }); if (!r.ok) throw new Error(r.status); return r.json(); }
+function wrapText(str, max, maxLines) {
+  const words = String(str).split(/\s+/), lines = []; let cur = "";
+  for (const w of words) {
+    if ((cur + " " + w).trim().length > max && cur) { lines.push(cur); cur = w; } else cur = (cur + " " + w).trim();
+  }
+  if (cur) lines.push(cur);
+  if (lines.length > maxLines) { lines.length = maxLines; lines[maxLines - 1] = lines[maxLines - 1].slice(0, Math.max(1, max - 1)) + "…"; }
+  return lines.map(l => l.length > max + 6 ? l.slice(0, max) + "…" : l);
+}
+const TYPE_FR = { dir: "Dossier", md: "Document", py: "Programme", json: "Données", html: "Page web", js: "Programme JavaScript", bat: "Script", sh: "Script", txt: "Texte", toml: "Configuration", yml: "Configuration", yaml: "Configuration" };
+const CAT = { md: "doc", py: "prog", js: "prog", bat: "prog", sh: "prog", html: "prog", json: "data", xlsx: "data" };
+const EXT_ICON = { py: "snake", md: "mdhash", json: "braces", html: "chevrons", js: "js", xlsx: "grid", xls: "grid", csv: "grid", bat: "terminal", sh: "terminal", png: "image", jpg: "image", jpeg: "image", gif: "image", webp: "image", bmp: "image", ico: "image" };
+const iconFor = n => n.type === "dir" || n.type === "zone" ? "folder" : (EXT_ICON[n.type] || "doc");
+
+/* ---------- onglets ---------- */
+$("#logo").append(icon("logo", 30), "Cockpit");
+const TABS = { today: ["Aujourd'hui", "today"], agents: ["Mes agents", "agent"], brain: ["Cerveau 3D", "cube"] };
+for (const k in TABS) $("#t-" + k).append(icon(TABS[k][1], 24), TABS[k][0]);
+let tab = "today";
+function showTab(t) {
+  tab = t;
+  for (const k in TABS) { $("#t-" + k).classList.toggle("on", k === t); $("#" + k).classList.toggle("on", k === t); }
+  if (t === "agents") loadAgents();
+  if (t === "brain") brainShow();
+}
+document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
+
+/* ---------- Aujourd'hui ---------- */
+let lastTl = "", openDet = new Set(), lastPlan = null, lastLive = null;
+function renderCounters(st, probs) {
+  const defs = [["Actions", st.calls, "bolt"], ["Fichiers modifiés", st.files_n, "write"], ["Recherches web", st.searches, "web"], ["Tests lancés", st.tests, "test"], ["Problèmes", st.errors, "error"]];
+  const box = $("#counters"); box.replaceChildren();
+  for (const [lab, val, ic] of defs) box.append(h("div", { class: "card counter" + (lab === "Problèmes" && val ? " bad" : "") }, h("div", { class: "ic" }, icon(ic, 26)), h("b", { text: String(val) }), h("span", { text: lab })));
+}
+function planStats(plan) { return { done: plan.filter(p => p.status === "completed").length, cur: plan.filter(p => p.status === "in_progress").length, todo: plan.filter(p => p.status === "pending").length }; }
+function planSvg(plan, W, maxLines, big) {
+  const fs = big ? 15 : 14, lh = fs + 3, max = Math.floor((W - 150) / (fs * .52));
+  let y = 14; const g = sv("g"), rows = [];
+  plan.forEach(p => { const ls = wrapText(p.content, max, maxLines), hgt = Math.max(36, ls.length * lh + 14); rows.push({ p, ls, y, hgt }); y += hgt; });
+  const svg = sv("svg", { viewBox: `0 0 ${W} ${y + 6}`, width: "100%", role: "img", "aria-label": "Étapes du plan" });
+  rows.forEach((r, i) => {
+    const cy = r.y + 16, st = r.p.status;
+    if (i < rows.length - 1) svg.append(sv("line", { x1: 22, y1: cy + 12, x2: 22, y2: rows[i + 1].y + 4, stroke: "#fff", "stroke-opacity": ".55", "stroke-width": "1.4", "stroke-dasharray": st === "completed" ? "" : "4 4" }));
+    if (st === "completed") { svg.append(sv("circle", { cx: 22, cy, r: 11, fill: "#fff" })); svg.append(sv("path", { d: "M16.5 16.5l4 4 7-8", transform: `translate(0,${cy - 16})`, fill: "none", stroke: "#0f3d91", "stroke-width": "2.6", "stroke-linecap": "round", "stroke-linejoin": "round" })); }
+    else if (st === "in_progress") { svg.append(sv("circle", { cx: 22, cy, r: 11, fill: "none", stroke: "#fff", "stroke-width": "3" })); svg.append(sv("circle", { cx: 22, cy, r: 4.5, fill: "#fff" })); }
+    else svg.append(sv("circle", { cx: 22, cy, r: 11, fill: "none", stroke: "#fff", "stroke-width": "1.6", "stroke-dasharray": "3 3" }));
+    r.ls.forEach((l, k) => svg.append(sv("text", { x: 46, y: cy + 5 + k * lh - (r.ls.length - 1) * lh / 2, fill: st === "completed" ? "#d6e4ff" : "#fff", "font-size": fs, "font-weight": st === "in_progress" ? "700" : "400" }, l)));
+    svg.append(sv("line", { x1: W - 118, y1: cy, x2: W - 100, y2: cy, stroke: "#fff", "stroke-opacity": ".5", "stroke-width": "1" }));
+    svg.append(sv("text", { x: W - 94, y: cy + 4, fill: "#d6e4ff", "font-size": 12, "letter-spacing": "1.5" }, st === "completed" ? "FAIT" : st === "in_progress" ? "EN COURS" : "À FAIRE"));
+  });
+  return svg;
+}
+function renderPlan(plan) {
+  const box = $("#planbox"); box.replaceChildren();
+  const s = planStats(plan);
+  $("#plansub").textContent = plan.length ? `${s.done} faite${s.done > 1 ? "s" : ""} sur ${plan.length}` + (s.cur ? ", 1 en cours" : "") : "L'agent n'a pas encore écrit de plan.";
+  if (!plan.length) { box.append(h("div", { class: "empty", text: "Aucun plan pour le moment." })); return; }
+  box.append(planSvg(plan, 860, 2, false));
+}
+function renderTimeline(items) {
+  const box = $("#tl"); box.replaceChildren();
+  if (!items.length) { box.append(h("div", { class: "empty", text: "Rien à afficher pour l'instant." })); return; }
+  for (const it of items) {
+    const key = it.seq, d = h("pre", { class: "det", text: it.details.join("\n") });
+    d.hidden = !openDet.has(key);
+    const btn = h("button", { class: "dbtn", type: "button", "aria-expanded": String(openDet.has(key)), text: "Détails", onclick: () => { if (openDet.has(key)) openDet.delete(key); else openDet.add(key); d.hidden = !openDet.has(key); btn.setAttribute("aria-expanded", String(!d.hidden)); } });
+    box.append(h("div", { class: "row " + (it.kind === "error" ? "error" : "") },
+      h("div", { class: "ic" }, icon(it.kind === "error" ? "error" : (ICONS[it.kind] ? it.kind : "other"), 20)),
+      h("div", { class: "tx" }, h("div", { class: "ph", text: it.text }), btn, d),
+      h("div", { class: "tm", text: fmtTime(it.ts) })));
+  }
+}
+function renderLive(j) {
+  lastLive = j;
+  const st = $("#state"), w = j.working;
+  st.className = "card " + (w ? "work" : "");
+  $("#state h1").textContent = !j.session ? "Aucune session trouvée" : w ? AGENT + " travaille" : "En pause depuis " + fmtAge(j.age_s || 0);
+  $("#state p").textContent = j.session ? (w ? "Une action a eu lieu il y a moins de 3 minutes." : "Aucune action depuis plus de 3 minutes.") : "Le dossier des sessions est vide.";
+  renderCounters(j.stats);
+  const b = $("#banner");
+  b.classList.toggle("on", j.problems.length > 0);
+  if (j.problems.length) { $("#banic").replaceChildren(icon("error", 28)); $("#bantx").textContent = "Une action a échoué récemment. L'agent réessaie souvent tout seul. Dernier message : " + j.problems[0].text; }
+  const ps = JSON.stringify(j.plan); if (ps !== lastPlan) { lastPlan = ps; renderPlan(j.plan); }
+  const ts = JSON.stringify(j.timeline.map(t => [t.seq, t.text, t.n])); if (ts !== lastTl) { lastTl = ts; renderTimeline(j.timeline); }
+}
+async function pollLive() {
+  if (document.hidden) return;
+  try { renderLive(await api("/api/live")); $("#conn").className = ""; $("#conn span").textContent = "Connecté"; }
+  catch (e) { $("#conn").className = "off"; $("#conn span").textContent = "Hors ligne"; }
+}
+$("#plancard").addEventListener("click", openPlanModal);
+$("#plancard").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPlanModal(); } });
+
+/* ---------- Mes agents ---------- */
+let agentCards = [], lastAg = "";
+async function loadAgents() {
+  if (document.hidden) return;
+  let j; try { j = await api("/api/agents"); } catch (e) { return; }
+  const sig = JSON.stringify(j); if (sig === lastAg) return; lastAg = sig; agentCards = j.cards;
+  const box = $("#agbox"); box.replaceChildren();
+  if (!j.found) { box.append(h("div", { class: "card help" }, h("h2", { text: "Aucun registre d'agents trouvé" }), h("p", { class: "sub" }, "Créez le fichier ", h("code", { text: "AGENTS.json" }), " à la racine du dossier suivi (le dossier choisi au démarrage) pour lister vos agents. Un modèle, ", h("code", { text: "AGENTS.exemple.json" }), ", est fourni avec le programme : copiez-le dans ce dossier, renommez-le ", h("code", { text: "AGENTS.json" }), " et changez les noms."), h("p", { class: "sub" }, "Comment nommer vos agents : une ligne par agent, avec un ", h("b", { text: "nom" }), " court qui dit ce qu'il fait (par exemple « Veilleur de prix »), un ", h("b", { text: "rôle" }), " en une phrase, un ", h("b", { text: "type" }), " (", h("code", { text: "planifie" }), " s'il tourne à heures fixes, sinon ", h("code", { text: "manuel" }), "), des ", h("b", { text: "horaires" }), " comme ", h("code", { text: "08:00" }), " et un ", h("b", { text: "état" }), " (", h("code", { text: "actif" }), ", ", h("code", { text: "pause" }), " ou ", h("code", { text: "termine" }), "). Évitez deux agents avec le même nom."), j.cards.length ? h("p", { class: "sub", text: "Les agents lancés pendant la session sont quand même affichés ci-dessous." }) : null)); }
+  if (j.error) box.append(h("div", { class: "card help" }, h("p", { text: j.error })));
+  const grid = h("div", { class: "grid" });
+  for (const a of j.cards) {
+    const last = a.last_activity ? "Dernière activité : " + new Date(a.last_activity).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "Pas d'activité enregistrée";
+    grid.append(h("button", { class: "card acard", type: "button", onclick: () => openAgentModal(a) },
+      h("h3", { text: a.nom }), h("p", { class: "role", text: a.role || "Rôle non précisé." }),
+      h("span", { class: "pill " + a.status }, h("i"), a.status_label),
+      a.next_run ? h("div", { class: "meta", text: "Prochaine exécution : " + a.next_run }) : null,
+      a.status === "planned" && a.horaires.length ? h("div", { class: "meta", text: "Horaires : " + a.horaires.join(", ") }) : null,
+      h("div", { class: "meta", text: last })));
+  }
+  box.append(grid);
+  if (!j.cards.length) box.append(h("div", { class: "empty", text: "Aucun agent à afficher." }));
+}
+
+/* ---------- fenêtre plan bleu ---------- */
+let lastFocus = null;
+function openModal(o) {
+  const dlg = $("#dlg"); dlg.replaceChildren();
+  const close = h("button", { class: "close", type: "button", text: "Fermer", onclick: closeModal });
+  dlg.append(h("header", null, o.icon ? bigIcon(o.icon) : null, h("div", null, h("h2", { id: "mtitle", text: o.title }), h("div", { class: "st", text: o.sub || "" })), close));
+  const left = h("div");
+  if (!o.full) (o.svgs || [{ t: "Schéma", n: o.svg }]).forEach(s => { const f = h("div", { class: "frame", style: "margin-bottom:14px" }, h("h4", { text: s.t })); f.append(s.n); left.append(f); });
+  const right = h("div");
+  const t = h("div", { class: "frame" }, h("h4", { text: o.blocks ? "Résumé" : "En clair" }));
+  (o.blocks || []).forEach(b => t.append(h("h5", { text: b.h }), h("p", { text: b.t })));
+  (o.paras || []).forEach(p => t.append(h("p", { text: p })));
+  (o.actions || []).forEach(a => t.append(h("button", { class: "abtn", type: "button", text: a.label, onclick: a.fn })));
+  right.append(t);
+  for (const L of o.lists || []) {
+    const ul = h("ul"); L.items.forEach(i => ul.append(h("li", null, h("div", { text: i.t }), i.s ? h("span", { text: i.s }) : null)));
+    if (!L.items.length) ul.append(h("li", null, h("div", { text: L.empty || "Aucun élément." })));
+    right.append(h("div", { class: "frame", style: "margin-top:14px" }, h("h4", { text: L.title }), ul));
+  }
+  dlg.append(o.full ? h("div", { class: "body", style: "grid-template-columns:minmax(0,1fr)" }, o.full) : h("div", { class: "body" }, left, right));
+  lastFocus = document.activeElement;
+  const m = $("#modal"); m.classList.remove("on"); void m.offsetWidth; m.classList.add("on"); m.setAttribute("aria-hidden", "false");
+  dlg.style.animation = "none"; void dlg.offsetWidth; dlg.style.animation = "";
+  dlg.scrollTop = 0; close.focus();
+}
+function closeModal() { const m = $("#modal"); m.classList.remove("on"); m.setAttribute("aria-hidden", "true"); if (lastFocus && lastFocus.focus) lastFocus.focus(); }
+document.addEventListener("keydown", e => { if (e.key === "Escape" && $("#modal").classList.contains("on")) closeModal(); });
+$("#modal").addEventListener("mousedown", e => { if (e.target === $("#modal")) closeModal(); });
+
+/* ---------- catalogue de schémas (SVG maison, traits blancs et bleu clair) ---------- */
+const LB = "#9cc4ff", TX2 = "#d6e4ff";
+let uid = 0;
+const mkSvg = H => sv("svg", { viewBox: `0 0 640 ${H}`, width: "100%", role: "img" });
+const trunc = (s, n) => { s = String(s); return s.length > n ? s.slice(0, n - 1) + "…" : s; };
+function block(g, x, y, w, hgt, lines, o = {}) {
+  g.append(sv("rect", { x, y, width: w, height: hgt, rx: 5, fill: o.fill || "rgba(255,255,255,.08)", stroke: "#fff", "stroke-width": o.thick ? 2 : 1.3, "stroke-dasharray": o.dash || "" }));
+  const lh = 16, y0 = y + hgt / 2 - (lines.length - 1) * lh / 2 + 5;
+  lines.forEach((l, i) => g.append(sv("text", { x: x + w / 2, y: y0 + i * lh, "text-anchor": "middle", fill: i && !o.allWhite ? TX2 : "#fff", "font-size": i ? 12.5 : 14, "font-weight": i ? "400" : "700" }, l)));
+}
+function wire(g, x1, y1, x2, y2, arrow) {
+  g.append(sv("line", { x1, y1, x2, y2, stroke: "#fff", "stroke-opacity": ".8", "stroke-width": "1.2" }));
+  if (arrow) { const a = Math.atan2(y2 - y1, x2 - x1), c = Math.cos(a), s = Math.sin(a); g.append(sv("path", { d: `M${x2 - 8 * c + 4 * s} ${y2 - 8 * s - 4 * c}L${x2} ${y2}L${x2 - 8 * c - 4 * s} ${y2 - 8 * s + 4 * c}`, fill: "none", stroke: "#fff", "stroke-width": "1.4" })); }
+}
+function txt(g, x, y, s, o = {}) { g.append(sv("text", Object.assign({ x, y, fill: o.fill || "#fff", "font-size": o.size || 13, "text-anchor": o.anchor || "start", "font-weight": o.bold ? "700" : "400" }, o.extra || {}), s)); }
+function dimension(g, x1, x2, y, label) {
+  g.append(sv("line", { x1, y1: y, x2, y2: y, stroke: LB, "stroke-width": 1 }));
+  g.append(sv("path", { d: `M${x1 + 8} ${y - 3}L${x1} ${y}L${x1 + 8} ${y + 3}M${x2 - 8} ${y - 3}L${x2} ${y}L${x2 - 8} ${y + 3}M${x1} ${y - 6}V${y + 6}M${x2} ${y - 6}V${y + 6}`, fill: "none", stroke: LB, "stroke-width": 1 }));
+  if (label) { const w = label.length * 6.6 + 14; g.append(sv("rect", { x: (x1 + x2) / 2 - w / 2, y: y - 8, width: w, height: 16, fill: "#0f3d91" })); txt(g, (x1 + x2) / 2, y + 4, label, { size: 12, anchor: "middle", fill: TX2 }); }
+}
+function compass(g, x, y, r) {
+  g.append(sv("circle", { cx: x, cy: y, r, fill: "none", stroke: LB }));
+  g.append(sv("path", { d: `M${x} ${y - r - 5}V${y + r + 5}M${x - r - 5} ${y}H${x + r + 5}`, stroke: LB, fill: "none" }));
+  g.append(sv("polygon", { points: `${x},${y - r + 2} ${x + 4},${y} ${x},${y + 4} ${x - 4},${y}`, fill: "#fff" }));
+  txt(g, x, y - r - 8, "N", { size: 11, anchor: "middle", bold: true });
+}
+function drawIcon(g, kind, x, y, s, sw = 1.6) {
+  const q = sv("g", { transform: `translate(${x},${y}) scale(${s / 48})`, fill: "none", stroke: "#fff", "stroke-width": sw, "stroke-linecap": "round", "stroke-linejoin": "round" });
+  const P = d => q.append(sv("path", { d, "vector-effect": "non-scaling-stroke" }));
+  const C = (cx, cy, r) => q.append(sv("circle", { cx, cy, r, "vector-effect": "non-scaling-stroke" }));
+  if (kind === "folder") P("M4 12h14l4 5h22v23H4zM4 21h40");
+  else if (kind === "gear") { C(24, 24, 7); C(24, 24, 14); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4, c = Math.cos(a), s2 = Math.sin(a); P(`M${24 + 14 * c} ${24 + 14 * s2}L${24 + 20 * c} ${24 + 20 * s2}`); } }
+  else if (kind === "doc") P("M10 4h20l8 8v32H10zM30 4v8h8M16 22h16M16 28h16M16 34h11");
+  else if (kind === "db") P("M8 11c0-5 32-5 32 0s-32 5-32 0zM8 11v9c0 5 32 5 32 0v-9M8 20v9c0 5 32 5 32 0v-9M8 29v8c0 5 32 5 32 0v-8");
+  else if (kind === "robot") { P("M24 5v7M13 12h22v20H13zM8 19v6M40 19v6M17 32v9M31 32v9M19 27h10"); C(19, 21, 2.5); C(29, 21, 2.5); C(24, 4, 1.6); }
+  else if (kind === "clock") { C(24, 24, 18); P("M24 12v12l8 5M24 3v3M24 42v3M3 24h3M42 24h3"); }
+  else if (kind === "lock") { P("M10 22h28v20H10zM16 22v-7a8 8 0 0116 0v7M24 29v6"); }
+  else if (kind === "snake") {   /* serpent a deux couleurs : deux corps entrelaces, tetes opposees (dessin original) */
+    const A = sv("path", { d: "M8 24C13 8 19 8 23 24C27 40 33 40 38 24", stroke: "#ffffff", "stroke-width": sw * 2, "vector-effect": "non-scaling-stroke" }), Bq = sv("path", { d: "M40 24C35 8 29 8 25 24C21 40 15 40 10 24", stroke: LB, "stroke-width": sw * 2, "vector-effect": "non-scaling-stroke" });
+    q.append(Bq, A);
+    q.append(sv("circle", { cx: 41.5, cy: 24, r: 3.6, fill: "#ffffff", stroke: "#ffffff" }), sv("circle", { cx: 6.5, cy: 24, r: 3.6, fill: LB, stroke: LB }));
+    q.append(sv("circle", { cx: 42.3, cy: 23, r: 1, fill: "#0f3d91", stroke: "none" }), sv("circle", { cx: 5.7, cy: 23, r: 1, fill: "#0f3d91", stroke: "none" }));
+    q.append(sv("path", { d: "M45 24h2.2M3 24H.8", "vector-effect": "non-scaling-stroke" }));
+  }
+  else if (kind === "mdhash") { P("M10 4h20l8 8v32H10zM30 4v8h8M20 19l-2 17M28 19l-2 17M15 25h17M14 31h17"); }
+  else if (kind === "braces") { P("M18 6c-5 0-6 2-6 6v5c0 3-2 6-5 7 3 1 5 4 5 7v5c0 4 1 6 6 6M30 6c5 0 6 2 6 6v5c0 3 2 6 5 7-3 1-5 4-5 7v5c0 4-1 6-6 6"); }
+  else if (kind === "chevrons") { P("M16 14L6 24l10 10M32 14l10 10-10 10M28 8L20 40"); }
+  else if (kind === "js") { P("M6 6h36v36H6z"); q.append(sv("text", { x: 24, y: 33, "text-anchor": "middle", "font-size": 19, "font-weight": "700", fill: "#fff", stroke: "none" }, "JS")); }
+  else if (kind === "grid") { P("M6 8h36v32H6zM6 19h36M6 29h36M18 8v32M30 8v32M6 8h36v6H6z"); }
+  else if (kind === "terminal") { P("M4 8h40v32H4zM4 15h40M12 23l6 5-6 5"); q.append(sv("rect", { x: 23, y: 30, width: 6, height: 8, fill: "#fff", stroke: "none" })); }
+  else if (kind === "image") { P("M6 8h36v32H6zM6 35l11-12 8 9 5-5 12 9"); C(33, 17, 4); }
+  else { P("M10 4h20l8 8v32H10zM30 4v8h8"); }
+  g.append(q);
+}
+function sheet(title, H, fn, o = {}) {
+  const W = 640, svg = mkSvg(H), id = "ht" + (++uid), c = 12;
+  const defs = sv("defs"), pat = sv("pattern", { id, width: 7, height: 7, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" });
+  pat.append(sv("line", { x1: 0, y1: 0, x2: 0, y2: 7, stroke: LB, "stroke-width": "1.2", "stroke-opacity": ".75" })); defs.append(pat); svg.append(defs);
+  svg.append(sv("polygon", { points: `${c},3 ${W - 3},3 ${W - 3},${H - c} ${W - c},${H - 3} 3,${H - 3} 3,${c}`, fill: "none", stroke: "#fff", "stroke-width": "1.6" }));
+  const cols = 8, rows = Math.max(2, Math.floor((H - 60) / 80));
+  for (let i = 0; i < cols; i++) { const x = 3 + (i + .5) * (W - 6) / cols; txt(svg, x, 17, String(i + 1), { size: 11, anchor: "middle", fill: LB }); if (i) svg.append(sv("line", { x1: 3 + i * (W - 6) / cols, y1: 3, x2: 3 + i * (W - 6) / cols, y2: 8, stroke: LB })); }
+  for (let j = 0; j < rows; j++) txt(svg, 12, 62 + j * 80, String.fromCharCode(65 + j), { size: 11, anchor: "middle", fill: LB });
+  const a = { x: 30, y: 30, w: W - 60, h: H - 30 - 68, hatch: "url(#" + id + ")" };
+  const g = sv("g"); svg.append(g); fn(g, a);
+  dimension(svg, 30, W - 235, H - 38, o.note || "");
+  const cx = W - 222, cy = H - 62;
+  svg.append(sv("rect", { x: cx, y: cy, width: 210, height: 50, fill: "rgba(5,25,70,.7)", stroke: "#fff", "stroke-width": "1.4" }));
+  svg.append(sv("line", { x1: cx, y1: cy + 26, x2: cx + 210, y2: cy + 26, stroke: "#fff" })); svg.append(sv("line", { x1: cx + 112, y1: cy + 26, x2: cx + 112, y2: cy + 50, stroke: "#fff" }));
+  txt(svg, cx + 8, cy + 18, trunc(String(title).toUpperCase(), 24), { size: 13, bold: true });
+  txt(svg, cx + 8, cy + 43, "DATE " + new Date().toLocaleDateString("fr-FR"), { size: 11.5, fill: TX2 }); txt(svg, cx + 120, cy + 43, "ÉCHELLE 1:" + (o.scale || 1), { size: 11.5, fill: TX2 });
+  return svg;
+}
+const sheetH = n => n + 98;
+/* 1. organigramme à blocs reliés */
+function gOrg(g, a, center, kids) {
+  const k = kids.slice(0, 5), w = 108, gap = (a.w - 5 * w) / 4, cw = 180, cx = a.x + a.w / 2, y0 = a.y + 4;
+  block(g, cx - cw / 2, y0, cw, 46, [trunc(center.label, 22), center.sub], { thick: true });
+  const busY = y0 + 46 + 24, rowY = busY + 22, rowW = k.length * w + Math.max(0, k.length - 1) * gap, x0 = a.x + (a.w - rowW) / 2;
+  if (k.length) wire(g, cx, y0 + 46, cx, busY, false);
+  if (k.length > 1) wire(g, x0 + w / 2, busY, x0 + (k.length - 1) * (w + gap) + w / 2, busY, false);
+  k.forEach((c, i) => { const x = x0 + i * (w + gap); wire(g, x + w / 2, busY, x + w / 2, rowY, true); block(g, x, rowY, w, 42, [trunc(c.label, 13), (TYPE_FR[c.type] || "Menu").toUpperCase()]); });
+  if (kids.length > 5) txt(g, a.x, a.y + a.h - 2, "+ " + (kids.length - 5) + " autres éléments (voir la liste)", { size: 12, fill: TX2 });
+  compass(g, a.x + a.w - 22, a.y + 24, 15);
+}
+/* 2. frise chronologique avec jalons */
+function gTime(g, a, marks) {
+  const y = a.y + a.h / 2, n = marks.length;
+  g.append(sv("line", { x1: a.x, y1: y, x2: a.x + a.w - 6, y2: y, stroke: "#fff", "stroke-width": "2" })); wire(g, a.x + a.w - 40, y, a.x + a.w, y, true);
+  marks.slice(0, 8).forEach((m, i) => { const x = n === 1 ? a.x + a.w / 2 : a.x + 54 + i * (a.w - 108) / (Math.min(n, 8) - 1), up = i % 2 === 0;
+    g.append(sv("circle", { cx: x, cy: y, r: 6.5, fill: "#0f3d91", stroke: "#fff", "stroke-width": "2" })); g.append(sv("circle", { cx: x, cy: y, r: 2.5, fill: "#fff" }));
+    wire(g, x, up ? y - 7 : y + 7, x, up ? y - 28 : y + 28, false);
+    block(g, x - 50, up ? y - 28 - 38 : y + 28, 100, 38, m.s ? [trunc(m.t, 12), trunc(m.s, 14)] : [trunc(m.t, 12)], {}); });
+}
+/* 4. anneau de segments */
+function gRing(g, a, parts) {
+  const tot = parts.reduce((s, p) => s + p.v, 0) || 1, cx = a.x + 110, cy = a.y + a.h / 2, R = Math.min(a.h / 2 - 4, 72), r = R * .58, fills = ["#ffffff", LB, "#5b8fe0", a.hatch];
+  let ang = -Math.PI / 2;
+  parts.forEach((p, i) => { const da = p.v / tot * Math.PI * 2, f = fills[i % 4];
+    if (parts.length === 1) { g.append(sv("circle", { cx, cy, r: (R + r) / 2, fill: "none", stroke: f, "stroke-width": R - r })); }
+    else { const a2 = ang + da, big = da > Math.PI ? 1 : 0, P = (rad, t) => (cx + rad * Math.cos(t)).toFixed(1) + " " + (cy + rad * Math.sin(t)).toFixed(1);
+      g.append(sv("path", { d: `M${P(R, ang)}A${R} ${R} 0 ${big} 1 ${P(R, a2)}L${P(r, a2)}A${r} ${r} 0 ${big} 0 ${P(r, ang)}Z`, fill: f, stroke: "#0f3d91", "stroke-width": "2" })); }
+    ang += da; });
+  txt(g, cx, cy + 2, String(tot), { size: 24, anchor: "middle", bold: true }); txt(g, cx, cy + 20, "éléments", { size: 11.5, anchor: "middle", fill: TX2 });
+  parts.forEach((p, i) => { const y = a.y + 14 + i * 28, f = fills[i % 4]; g.append(sv("rect", { x: a.x + 250, y: y - 10, width: 16, height: 16, fill: f, stroke: "#fff" })); txt(g, a.x + 276, y + 3, p.label, { size: 13.5 }); txt(g, a.x + a.w, y + 3, p.v + "  (" + Math.round(p.v / tot * 100) + " %)", { size: 13, anchor: "end", fill: TX2 }); });
+}
+/* 5. barres de proportion */
+function gBars(g, a, items, unit) {
+  const mx = Math.max(1, ...items.map(i => i.v)), bx = a.x + 170, bw = a.w - 170 - 70;
+  dimension(g, bx, bx + bw, a.y + 6, mx + (unit || ""));
+  items.slice(0, 7).forEach((it, i) => { const y = a.y + 26 + i * 28, w = Math.max(3, it.v / mx * bw);
+    txt(g, a.x, y + 14, trunc(it.label, 22), { size: 13 }); g.append(sv("rect", { x: bx, y, width: w, height: 18, fill: a.hatch, stroke: "#fff", "stroke-width": "1.3" })); txt(g, bx + w + 8, y + 14, String(it.v) + (unit || ""), { size: 12.5, fill: TX2 }); });
+}
+/* 6. jauge circulaire */
+function gGauge(g, a, done, total, label) {
+  const cx = a.x + 120, cy = a.y + a.h / 2, R = Math.min(a.h / 2 - 16, 70), f = total ? done / total : 0;
+  g.append(sv("circle", { cx, cy, r: R, fill: "none", stroke: "rgba(255,255,255,.25)", "stroke-width": "12" }));
+  if (f >= 1) g.append(sv("circle", { cx, cy, r: R, fill: "none", stroke: "#fff", "stroke-width": "12" }));
+  else if (f > 0) { const t = -Math.PI / 2 + f * 2 * Math.PI, big = f > .5 ? 1 : 0; g.append(sv("path", { d: `M${cx} ${cy - R}A${R} ${R} 0 ${big} 1 ${(cx + R * Math.cos(t)).toFixed(1)} ${(cy + R * Math.sin(t)).toFixed(1)}`, fill: "none", stroke: "#fff", "stroke-width": "12", "stroke-linecap": "butt" })); }
+  for (let i = 0; i < 40; i++) { const t = i / 40 * 2 * Math.PI, l = i % 10 === 0 ? 9 : 5; g.append(sv("line", { x1: cx + (R + 11) * Math.cos(t), y1: cy + (R + 11) * Math.sin(t), x2: cx + (R + 11 + l) * Math.cos(t), y2: cy + (R + 11 + l) * Math.sin(t), stroke: LB })); }
+  txt(g, cx, cy + 8, done + "/" + total, { size: 28, anchor: "middle", bold: true }); txt(g, cx, cy + 27, label, { size: 12, anchor: "middle", fill: TX2 });
+  txt(g, a.x + 270, a.y + a.h / 2 - 6, Math.round(f * 100) + " %", { size: 40, bold: true }); txt(g, a.x + 272, a.y + a.h / 2 + 18, "d'avancement", { size: 14, fill: TX2 });
+  g.append(sv("rect", { x: a.x + 272, y: a.y + a.h / 2 + 30, width: 200, height: 12, fill: "none", stroke: "#fff" })); g.append(sv("rect", { x: a.x + 272, y: a.y + a.h / 2 + 30, width: 200 * f, height: 12, fill: a.hatch, stroke: "#fff" }));
+}
+/* 7. pyramide de niveaux */
+function gPyr(g, a, levels) {
+  const n = Math.min(levels.length, 5), bh = 34, cx = a.x + 190, wb = 330;
+  levels.slice(0, n).forEach((lv, i) => { const y = a.y + 4 + i * (bh + 4), top = 50 + (wb - 50) * i / n, bot = 50 + (wb - 50) * (i + 1) / n;
+    g.append(sv("polygon", { points: `${cx - top / 2},${y} ${cx + top / 2},${y} ${cx + bot / 2},${y + bh} ${cx - bot / 2},${y + bh}`, fill: i === 0 ? a.hatch : "rgba(255,255,255,.09)", stroke: "#fff", "stroke-width": "1.4" }));
+    g.append(sv("line", { x1: cx + (top + bot) / 4, y1: y + bh / 2, x2: a.x + 380, y2: y + bh / 2, stroke: LB, "stroke-dasharray": "3 3" })); txt(g, a.x + 388, y + bh / 2 + 5, lv.label + " : " + lv.n, { size: 13.5 }); });
+}
+/* escalier */
+function gStairs(g, a, levels) {
+  const n = levels.length, sw = (a.w - 40) / n, base = a.y + a.h - 6;
+  levels.forEach((lv, i) => { const hgt = 36 + i * 34, x = a.x + 10 + i * sw;
+    g.append(sv("rect", { x, y: base - hgt, width: sw - 4, height: hgt, fill: i === n - 1 ? a.hatch : "rgba(255,255,255,.09)", stroke: "#fff", "stroke-width": "1.4" }));
+    txt(g, x + (sw - 4) / 2, base - hgt - 22, String(lv.n), { size: 22, anchor: "middle", bold: true }); txt(g, x + (sw - 4) / 2, base - hgt - 6, lv.label, { size: 12.5, anchor: "middle", fill: TX2 }); });
+}
+/* 8. flux avec flèches et losanges de décision */
+function gFlow(g, a, steps) {
+  const per = 3, w = 150, gap = (a.w - per * w) / (per - 1), pos = [];
+  steps.forEach((s, i) => { const row = Math.floor(i / per), col = i % per, x = a.x + col * (w + gap), cy = a.y + 32 + row * 78, dec = s.type === "decision", hh = dec ? 58 : 42; pos.push({ x, cy, hh, dec, row, col });
+    if (dec) { g.append(sv("polygon", { points: `${x + w / 2},${cy - 29} ${x + w},${cy} ${x + w / 2},${cy + 29} ${x},${cy}`, fill: "rgba(255,255,255,.09)", stroke: "#fff", "stroke-width": "1.5" })); txt(g, x + w / 2, cy + 4, trunc(s.t, 16), { size: 12, anchor: "middle", bold: true }); }
+    else if (s.type === "start" || s.type === "end") { g.append(sv("rect", { x, y: cy - 20, width: w, height: 40, rx: 20, fill: "rgba(255,255,255,.14)", stroke: "#fff", "stroke-width": "1.5" })); txt(g, x + w / 2, cy + 5, trunc(s.t, 20), { size: 13, anchor: "middle", bold: true }); }
+    else block(g, x, cy - 21, w, 42, wrapText(s.t, 22, 2), { allWhite: true }); });
+  for (let i = 0; i < pos.length - 1; i++) { const p = pos[i], q = pos[i + 1];
+    if (p.row === q.row) { wire(g, p.x + w, p.cy, q.x, q.cy, true); if (p.dec) txt(g, p.x + w + gap / 2, p.cy - 6, "oui", { size: 11.5, anchor: "middle", fill: TX2 }); }
+    else { const ym = p.cy + 40; g.append(sv("path", { d: `M${p.x + w / 2} ${p.cy + p.hh / 2}V${ym}H${q.x + w / 2}V${q.cy - q.hh / 2 - 1}`, fill: "none", stroke: "#fff", "stroke-opacity": ".8", "stroke-width": "1.2" })); wire(g, q.x + w / 2, q.cy - q.hh / 2 - 9, q.x + w / 2, q.cy - q.hh / 2, true); } }
+  pos.forEach(p => { if (p.dec) { g.append(sv("line", { x1: p.x + w / 2, y1: p.cy + 29, x2: p.x + w / 2, y2: p.cy + 41, stroke: "#fff", "stroke-opacity": ".8" })); txt(g, p.x + w / 2 + 6, p.cy + 38, "non : on attend", { size: 11, fill: TX2 }); } });
+}
+const flowH = n => sheetH(Math.ceil(n / 3) * 78 + 20);
+/* 9. arbre en branches */
+function gTree(g, a, root, branches) {
+  const rows = branches.reduce((s, b) => s + Math.max(1, b.kids.length), 0), rh = 27, tot = rows * rh, y0 = a.y + 4, rootY = y0 + tot / 2;
+  block(g, a.x, rootY - 20, 140, 40, [trunc(root, 16), "TRONC"], { thick: true });
+  let r = 0;
+  branches.forEach(b => { const n = Math.max(1, b.kids.length), by = y0 + (r + n / 2) * rh;
+    g.append(sv("path", { d: `M${a.x + 140} ${rootY}C${a.x + 165} ${rootY} ${a.x + 165} ${by} ${a.x + 190} ${by}`, fill: "none", stroke: "#fff", "stroke-width": "1.4" }));
+    g.append(sv("rect", { x: a.x + 190, y: by - 12, width: 180, height: 24, rx: 12, fill: "rgba(255,255,255,.12)", stroke: "#fff", "stroke-width": "1.3" })); txt(g, a.x + 280, by + 4.5, trunc(b.t, 24), { size: 12.5, anchor: "middle", bold: true });
+    b.kids.forEach((k, j) => { const ky = y0 + (r + j + .5) * rh; g.append(sv("path", { d: `M${a.x + 370} ${by}C${a.x + 395} ${by} ${a.x + 395} ${ky} ${a.x + 420} ${ky}`, fill: "none", stroke: LB, "stroke-width": "1.1" })); g.append(sv("circle", { cx: a.x + 420, cy: ky, r: 3, fill: "#fff" })); txt(g, a.x + 430, ky + 4.5, trunc(k, 26), { size: 12.5, fill: TX2 }); });
+    r += n; });
+}
+const treeH = bs => sheetH(Math.max(60, bs.reduce((s, b) => s + Math.max(1, b.kids.length), 0) * 27 + 12));
+/* 10. planche d'icônes */
+function gIcons(g, a, items) {
+  const per = 4, cw = a.w / per;
+  items.slice(0, 8).forEach((it, i) => { const row = Math.floor(i / per), cx = a.x + (i % per) * cw + cw / 2, y = a.y + 4 + row * 104;
+    g.append(sv("rect", { x: cx - cw / 2 + 8, y, width: cw - 16, height: 94, rx: 4, fill: "none", stroke: LB, "stroke-dasharray": "4 4" }));
+    drawIcon(g, it.icon, cx - 26, y + 8, 52); txt(g, cx, y + 76, trunc(it.label, 17), { size: 13, anchor: "middle", bold: true }); txt(g, cx, y + 90, trunc(it.sub || "", 20), { size: 11.5, anchor: "middle", fill: TX2 }); });
+}
+const iconsH = n => sheetH(Math.ceil(Math.min(n, 8) / 4) * 104);
+
+/* ---------- choix des schémas selon le type d'élément ---------- */
+const SECRETS = { icon: "lock", label: "Secrets masqués", sub: "clés et mots de passe" };
+function kidsOf(n) { return n.type === "zone" ? n.vchildren : n.children; }
+function dirSheets(n, kids, name) {
+  const cnt = { dir: 0, md: 0, py: 0, json: 0, autre: 0 }; kids.forEach(k => { const c = k.type === "zone" ? "dir" : (CAT[k.type] === "prog" ? "py" : CAT[k.type] === "doc" ? "md" : CAT[k.type] === "data" ? "json" : (k.type === "dir" ? "dir" : "autre")); cnt[c]++; });
+  const out = [];
+  if (kids.length <= 5) out.push({ t: "Organigramme à blocs reliés", n: sheet(name, sheetH(150), (g, a) => gOrg(g, a, { label: name, sub: n.type === "zone" ? "MENU GÉNÉRAL" : "DOSSIER" }, kids), { note: kids.length + " éléments" }) });
+  else {
+    const groups = [["Sous-dossiers", k => k.type === "dir" || k.type === "zone"], ["Documents", k => CAT[k.type] === "doc"], ["Programmes", k => CAT[k.type] === "prog"], ["Données", k => CAT[k.type] === "data"]];
+    const bs = groups.map(([t, f]) => { const l = kids.filter(f); return { t: t + " (" + l.length + ")", kids: l.slice(0, 3).map(k => k.label).concat(l.length > 3 ? ["... et " + (l.length - 3) + " autres"] : []) }; }).filter(b => b.kids.length);
+    out.push({ t: "Arbre en branches", n: sheet(name, treeH(bs), (g, a) => gTree(g, a, name, bs), { note: kids.length + " éléments" }) });
+  }
+  const parts = [["Sous-dossiers", cnt.dir], ["Documents", cnt.md], ["Programmes", cnt.py], ["Données", cnt.json]].filter(p => p[1] > 0).map(p => ({ label: p[0], v: p[1] }));
+  if (parts.length >= 2) out.push({ t: "Anneau : parts de l'ensemble", n: sheet(name, sheetH(150), (g, a) => gRing(g, a, parts), { note: "répartition par type" }) });
+  else { const bars = kids.filter(k => k.size).sort((x, y) => y.size - x.size).slice(0, 6).map(k => ({ label: k.label, v: Math.round(k.size / 1024 * 10) / 10 })); if (bars.length) out.push({ t: "Barres de proportion (Ko)", n: sheet(name, sheetH(bars.length * 28 + 30), (g, a) => gBars(g, a, bars, " Ko"), { note: "tailles en Ko" }) }); }
+  out.push({ t: "Planche d'icônes", n: sheet(name, iconsH(5), (g, a) => gIcons(g, a, [{ icon: "folder", label: "Dossier", sub: kids.length + " éléments" }, { icon: "mdhash", label: "Documents", sub: String(cnt.md) }, { icon: "snake", label: "Programmes", sub: String(cnt.py) }, { icon: "braces", label: "Données", sub: String(cnt.json) }, SECRETS]), { note: "légende des symboles" }) });
+  return out;
+}
+function iconsSheet(n, f, extra) {
+  const ic = iconFor(n);
+  return { t: "Planche d'icônes", n: sheet(n.label, iconsH(4), (g, a) => gIcons(g, a, [{ icon: ic, label: TYPE_FR[n.type] || "Fichier", sub: f && f.lines ? f.lines + " lignes" : fmtSize(n.size) }, { icon: "doc", label: "Taille", sub: fmtSize(n.size) }, { icon: "clock", label: "Modifié", sub: new Date(n.mtime * 1000).toLocaleDateString("fr-FR") }, SECRETS]), { note: extra || "fiche du fichier" }) };
+}
+function mdSheets(n, f) {
+  const o = (f && f.outline) || [], lv = (f && f.levels) || o.map(() => 2), out = [];
+  if (o.length) {
+    const br = []; o.forEach((t, i) => { if (lv[i] <= 2 || !br.length) br.push({ t, kids: [] }); else br[br.length - 1].kids.push(t); });
+    const bs = br.slice(0, 6); out.push({ t: "Arbre en branches (titres)", n: sheet(n.label, treeH(bs), (g, a) => gTree(g, a, n.label, bs), { note: o.length + " titres" }) });
+    const lvls = [1, 2, 3].map(l => ({ label: "Niveau " + l, n: lv.filter(x => (x >= 3 ? 3 : x) === l).length })).filter(l => l.n > 0);
+    out.push({ t: "Pyramide de niveaux", n: sheet(n.label, sheetH(lvls.length * 38 + 14), (g, a) => gPyr(g, a, lvls), { note: "niveaux de titres" }) });
+  }
+  out.push(iconsSheet(n, f));
+  return out;
+}
+function mainSteps(items, fallback) {
+  const fn = (items || []).filter(i => i.kind === "fonction" || i.kind === "classe").map(i => i.name + "()"), l = fn.length ? fn : (fallback || []).map(t => t + "()");
+  return [{ t: "Début du programme", type: "start" }].concat(l.slice(0, 7).map(t => ({ t, type: "step" }))).concat([{ t: "Fin", type: "end" }]);
+}
+function pySheets(n, f, t) {
+  const out = [], steps = mainSteps(t && t.items, f && f.outline);
+  out.push({ t: "Diagramme de flux (fonctions principales)", n: sheet(n.label, flowH(steps.length), (g, a) => gFlow(g, a, steps), { note: (steps.length - 2) + " fonctions ou classes" }) });
+  const bars = ((t && t.items) || []).filter(i => i.kind !== "methode").map(i => ({ label: i.name, v: Math.max(1, i.end - i.line + 1) })).sort((x, y) => y.v - x.v).slice(0, 6);
+  if (bars.length >= 2) out.push({ t: "Barres de proportion (longueur en lignes)", n: sheet(n.label, sheetH(bars.length * 28 + 30), (g, a) => gBars(g, a, bars, " l."), { note: "les plus longues fonctions" }) });
+  out.push(iconsSheet(n, f, "fiche du programme"));
+  return out;
+}
+function jsonSheets(n, f) {
+  const o = (f && f.outline) || [], out = [];
+  if (o.length) {
+    const bs = o.slice(0, 8).map(t => ({ t: t.replace(/ \(\d+\)$/, ""), kids: [] }));
+    out.push({ t: "Arbre en branches (rubriques)", n: sheet(n.label, treeH(bs), (g, a) => gTree(g, a, n.label, bs), { note: o.length + " rubriques" }) });
+    const bars = o.map(t => { const m = /^(.*) \((\d+)\)$/.exec(t); return m ? { label: m[1], v: +m[2] } : null; }).filter(Boolean).slice(0, 6);
+    if (bars.length) out.push({ t: "Barres de proportion", n: sheet(n.label, sheetH(bars.length * 28 + 30), (g, a) => gBars(g, a, bars, ""), { note: "nombre d'éléments par rubrique" }) });
+  }
+  out.push(iconsSheet(n, f, "fiche des données"));
+  return out;
+}
+function otherSheets(n, f) { return [iconsSheet(n, f)]; }
+function agentSheets(a) {
+  const hs = (a.horaires || []).slice().sort(), out = [];
+  out.push({ t: "Frise chronologique (horaires)", n: sheet(a.nom, sheetH(150), (g, ar) => gTime(g, ar, hs.length ? hs.map(t => ({ t, s: "passage" })) : [{ t: "À la demande", s: "pas d'horaire fixe" }]), { note: hs.length ? hs.length + " passage(s) par jour" : "lancé à la demande" }) });
+  const prog = a.fichier ? short(a.fichier) : "son programme";
+  const steps = [{ t: "Heure prévue", type: "start" }, { t: a.etat === "actif" || a.status === "planned" ? "Agent actif ?" : "Agent prêt ?", type: "decision" }, { t: "Lancer " + prog, type: "step" }, { t: "Travailler, noter le résultat", type: "step" }, { t: a.status_label || "Fin", type: "end" }];
+  out.push({ t: "Diagramme de flux", n: sheet(a.nom, flowH(steps.length), (g, ar) => gFlow(g, ar, steps), { note: "cycle de l'agent" }) });
+  out.push({ t: "Planche d'icônes", n: sheet(a.nom, iconsH(4), (g, ar) => gIcons(g, ar, [{ icon: "robot", label: "Agent", sub: a.status_label }, { icon: "clock", label: "Horaires", sub: hs.length + " par jour" }, { icon: "gear", label: "Programme", sub: prog }, SECRETS]), { note: "fiche de l'agent" }) });
+  return out;
+}
+const short = p => String(p).split(/[\\/]/).pop();
+function planSheets(plan) {
+  const s = planStats(plan), out = [];
+  out.push({ t: "Étapes du plan", n: planSvg(plan.length ? plan : [{ content: "Aucun plan pour le moment", status: "pending" }], 640, 3, true) });
+  out.push({ t: "Jauge d'avancement", n: sheet("Plan du moment", sheetH(180), (g, a) => gGauge(g, a, s.done, plan.length, "faites"), { note: s.done + " faite(s) sur " + plan.length }) });
+  out.push({ t: "Escalier des états", n: sheet("Plan du moment", sheetH(150), (g, a) => gStairs(g, a, [{ label: "À faire", n: s.todo }, { label: "En cours", n: s.cur }, { label: "Fait", n: s.done }]), { note: "total : " + plan.length }) });
+  const cur = plan.findIndex(p => p.status === "in_progress"), steps = [{ t: "Début", type: "start" }].concat(plan.slice(0, 7).map((p, i) => ({ t: p.content, type: i === cur ? "decision" : "step" }))).concat([{ t: "Terminé", type: "end" }]);
+  out.push({ t: "Diagramme de flux", n: sheet("Plan du moment", flowH(steps.length), (g, a) => gFlow(g, a, steps), { note: "losange = étape en cours" }) });
+  return out;
+}
+function openAgentModal(a) {
+  const done = [];
+  if (a.status === "done" && a.detail) done.push({ t: a.detail });
+  if (a.duree_s != null) done.push({ t: "Temps de travail", s: a.duree_s + " s" });
+  openModal({ title: a.nom, sub: "AGENT  -  " + a.status_label, svgs: agentSheets(a),
+    paras: [a.role || "Rôle non précisé.", a.horaires.length ? "Il se lance à : " + a.horaires.join(", ") + "." : "Il n'a pas d'horaire fixe : il est lancé à la demande.", a.next_run ? "Prochaine exécution : " + a.next_run + "." : ""].filter(Boolean),
+    lists: [{ title: "Tâches accomplies", items: done, empty: "Aucune tâche enregistrée pour le moment." }] });
+}
+function openPlanModal() {
+  const plan = lastLive ? lastLive.plan : [], s = planStats(plan);
+  openModal({ title: "Le plan du moment", sub: plan.length ? `${s.done} faite(s), ${s.cur} en cours, ${s.todo} à faire` : "Aucun plan", svgs: planSheets(plan),
+    paras: ["C'est la liste des étapes que l'agent s'est donnée. Une étape pleine est terminée, un rond épais est en cours, un rond en pointillés reste à faire."],
+    lists: [{ title: "Tâches accomplies", items: plan.filter(p => p.status === "completed").map(p => ({ t: p.content })) }, { title: "Reste à faire", items: plan.filter(p => p.status !== "completed").map(p => ({ t: p.content, s: p.status === "in_progress" ? "en cours" : "" })) }] });
+}
+/* ---------- fenêtres du programme : résumé, comment ça marche, code complet ---------- */
+const KW = {
+  py: "def class import from return if elif else for while in not and or is None True False try except finally with as lambda pass raise yield global nonlocal del assert continue break async await",
+  js: "function const let var return if else for while new class import export from async await try catch throw true false null undefined typeof switch case break default of in this",
+  sh: "if then else elif fi for do done while case esac function echo exit export local return in set",
+  bat: "echo off set if else for do goto call exit rem not exist setlocal endlocal"
+};
+function highlightInto(el, text, ext) {
+  const lang = ext === "py" ? "py" : ext === "js" ? "js" : ext === "sh" ? "sh" : ext === "bat" ? "bat" : ext === "json" ? "json" : ext === "html" ? "html" : ext === "md" ? "md" : "";
+  if (!lang || text.length > 250000) { el.textContent = text; return; }
+  let re;
+  if (lang === "py") re = /(#[^\n]*)|("""[\s\S]*?"""|'''[\s\S]*?'''|"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*')|\b([A-Za-z_]\w*)\b/g;
+  else if (lang === "js") re = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`)|\b([A-Za-z_$][\w$]*)\b/g;
+  else if (lang === "sh") re = /(#[^\n]*)|("(?:\\.|[^"\\])*"|'[^']*')|\b([A-Za-z_]\w*)\b/g;
+  else if (lang === "bat") re = /((?:^|\n)\s*(?:rem\b|::)[^\n]*)|("[^"\n]*")|\b([A-Za-z_]\w*)\b/gi;
+  else if (lang === "json") re = /()("(?:\\.|[^"\\\n])*")|\b(true|false|null)\b/g;
+  else if (lang === "html") re = /(<!--[\s\S]*?-->)|("[^"\n]*")|(<\/?[A-Za-z][^>\s]*|>)/g;
+  else re = /((?:^|\n)#{1,6} [^\n]*)()()/g;
+  const kw = new Set((KW[lang] || "").split(" ")), frag = document.createDocumentFragment(); let last = 0, m;
+  const put = (s, c) => { if (!s) return; if (!c) frag.append(document.createTextNode(s)); else frag.append(h("span", { class: c, text: s })); };
+  while ((m = re.exec(text))) {
+    if (m.index > last) put(text.slice(last, m.index));
+    if (m[1]) put(m[0], "tc"); else if (m[2]) put(m[0], "ts");
+    else if (m[3] && (lang === "html" || lang === "json" || kw.has(lang === "bat" ? m[3].toLowerCase() : m[3]))) put(m[0], "tk");
+    else put(m[0]);
+    last = m.index + m[0].length; if (m[0].length === 0) re.lastIndex++;
+  }
+  put(text.slice(last)); el.replaceChildren(frag);
+}
+function bigIcon(kind, size = 84) {
+  const s = sv("svg", { viewBox: "0 0 48 48", width: size, height: size, "aria-hidden": "true", style: "flex:none" }); drawIcon(s, kind, 0, 0, 48, 2.2); return s;
+}
+async function copyText(btn, text) {
+  try { await navigator.clipboard.writeText(text); } catch (e) { const t = h("textarea", { style: "position:fixed;opacity:0" }); t.value = text; document.body.append(t); t.select(); try { document.execCommand("copy"); } catch (_) {} t.remove(); }
+  const old = btn.textContent; btn.textContent = "Copié"; setTimeout(() => { btn.textContent = old; }, 1500);
+}
+async function openCodeModal(n) {
+  let c; try { c = await api("/api/code?path=" + encodeURIComponent(n.id)); } catch (e) { c = { ok: false, reason: "Ce fichier n'est pas accessible (dossier ou fichier protégé)." }; }
+  const ext = n.type, ic = iconFor(n);
+  if (!c.ok) { openModal({ title: n.label, sub: "CODE COMPLET", icon: ic, svgs: [{ t: "Information", n: sheet(n.label, sheetH(60), (g, a) => txt(g, a.x + 4, a.y + 28, "Affichage impossible", { size: 18, bold: true }), { note: "" }) }], paras: [c.reason], actions: [{ label: "Retour au résumé", fn: () => openNodeModal(n) }] }); return; }
+  const gut = h("pre", { class: "gut", "aria-hidden": "true", text: Array.from({ length: c.lines }, (_, i) => i + 1).join("\n") });
+  const code = h("pre", { class: "code" }); highlightInto(code, c.text, ext);
+  const scroll = h("div", { class: "codescroll", tabindex: "0" }, gut, code);
+  const cp = h("button", { class: "abtn", type: "button", text: "Copier le code", onclick: () => copyText(cp, c.text) });
+  const full = h("div", null, h("div", { class: "frame" }, h("h4", { text: n.id + "  -  " + c.lines + " lignes  -  " + fmtSize(c.size) }), h("div", { style: "margin-bottom:10px" }, cp, h("button", { class: "abtn", type: "button", text: "Retour au résumé", onclick: () => openNodeModal(n) }), h("span", { class: "kvl", text: "Les clés et mots de passe éventuels sont masqués." })), scroll));
+  openModal({ title: n.label, sub: "CODE COMPLET", icon: ic, full });
+}
+async function openTechModal(n, f, t) {
+  if (!t) { try { t = await api("/api/tech?path=" + encodeURIComponent(n.id)); } catch (e) { t = { ok: false }; } }
+  const ic = iconFor(n);
+  if (!t.ok) { openModal({ title: n.label, sub: "COMMENT ÇA MARCHE", icon: ic, svgs: [iconsSheet(n, f)], paras: [t.reason || "Analyse impossible pour ce fichier."], actions: [{ label: "Retour au résumé", fn: () => openNodeModal(n) }] }); return; }
+  const items = t.items || [], fn = items.filter(i => i.kind === "fonction" || i.kind === "classe");
+  let svgs;
+  if (n.type === "py") svgs = pySheets(n, f, t);
+  else if (n.type === "md") svgs = mdSheets(n, { outline: items.map(i => i.name), levels: items.map(i => i.level), lines: t.lines });
+  else if (n.type === "json") svgs = jsonSheets(n, { outline: items.map(i => i.name), lines: t.lines });
+  else svgs = otherSheets(n, { lines: t.lines });
+  const lists = [];
+  if (items.length) lists.push({ title: n.type === "py" ? "Fonctions et classes" : n.type === "md" ? "Titres du document" : "Rubriques", items: items.slice(0, 60).map(i => ({ t: (i.kind === "classe" ? "classe " : "") + i.name + (n.type === "py" && i.kind !== "classe" ? "()" : "") + (i.line ? "  (ligne " + i.line + ")" : ""), s: i.role || "" })) });
+  if (n.type === "py") lists.push({ title: "Modules importés", items: (t.imports || []).map(m => ({ t: m })), empty: "Aucun module importé." });
+  lists.push({ title: "En chiffres", items: [{ t: "Taille", s: fmtSize(t.size) }, { t: "Lignes", s: String(t.lines) }].concat(n.type === "py" ? [{ t: "Fonctions et classes", s: String(fn.length) }] : []) });
+  openModal({ title: n.label, sub: "COMMENT ÇA MARCHE  -  FICHE TECHNIQUE", icon: ic, svgs, paras: [t.error || "Voici ce que contient le fichier, dans l'ordre. Chaque ligne donne le rôle en une phrase quand l'auteur l'a écrit."],
+    lists, actions: [{ label: "Voir le code complet", fn: () => openCodeModal(n) }, { label: "Retour au résumé", fn: () => openNodeModal(n) }] });
+}
+async function openNodeModal(n) {
+  const kids = kidsOf(n) || [], ic = iconFor(n);
+  if (n.type === "dir" || n.type === "zone") {
+    const nd = kids.filter(k => k.type === "dir").length, nf = kids.length - nd, name = n.id === "" ? AGENT : n.label;
+    openModal({ title: name, sub: (n.type === "zone" ? "MENU GÉNÉRAL" : "DOSSIER") + "  -  " + kids.length + " ÉLÉMENTS", icon: "folder", svgs: dirSheets(n, kids, name),
+      blocks: [{ h: "Ce que ça fait", t: n.desc || "Ce dossier range des fichiers qui vont ensemble." }].concat(n.why ? [{ h: "Pourquoi", t: n.why }] : []),
+      paras: ["Il contient " + nd + " sous-dossier(s) et " + nf + " fichier(s)."], lists: [{ title: "Éléments présents", items: kids.slice(0, 60).map(k => ({ t: k.label, s: TYPE_FR[k.type] || "Menu" })) }] });
+    return;
+  }
+  let f = null, t = null;
+  try { [f, t] = await Promise.all([api("/api/file?path=" + encodeURIComponent(n.id)), n.type === "py" || n.type === "md" || n.type === "json" ? api("/api/tech?path=" + encodeURIComponent(n.id)) : Promise.resolve(null)]); } catch (e) {}
+  const sh = n.type === "md" ? mdSheets(n, f) : n.type === "py" ? pySheets(n, f, t) : n.type === "json" ? jsonSheets(n, f) : otherSheets(n, f);
+  const quoi = (f && f.quoi) || n.desc || "Pas encore de description", why = (f && f.pourquoi) || n.why || "";
+  openModal({ title: n.label, sub: (TYPE_FR[n.type] || "Fichier").toUpperCase() + "  -  " + fmtSize(n.size), icon: ic, svgs: sh,
+    blocks: [{ h: "Ce que ça fait", t: quoi }].concat(why ? [{ h: "Pourquoi", t: why }] : []),
+    actions: [{ label: "Comment ça marche", fn: () => openTechModal(n, f, t) }, { label: "Voir le code complet", fn: () => openCodeModal(n) }],
+    lists: [{ title: "Chemin", items: [{ t: n.id }] }] });
+}
+
+/* ---------- Cerveau 3D ---------- */
+const ZCOL = { root: "#ffffff" };   // couleurs des menus : fournies par le serveur (t.zones[].color)
+const TYPEF = { md: "md", txt: "md", py: "py", js: "py", bat: "py", sh: "py", html: "py", json: "json", toml: "json", yml: "json", yaml: "json" };
+const B = { nodes: new Map(), root: null, zones: [], expanded: new Set([""]), filters: { md: true, py: true, json: true }, sel: null, hover: null, vis: [], visSet: new Set(), loaded: false,
+  yaw: .55, pitch: .38, D: 780, tD: 780, target: [0, 0, 0], tTarget: [0, 0, 0], zrects: [], placed: [], proj: new Map(), la: new Map(), lo: new Map(), fading: false, labelCount: 0, anim: false, pending: false, treeOpen: new Set([""]), lit: 1, tw: 0 };
+const cv = $("#cv"), ctx = cv.getContext("2d"), bgc = $("#bg"), bctx = bgc.getContext("2d");
+const MAXV = 300, DMIN = 40, MAXLAB = 14, BASE_R = 52, clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function fib(i, n, r) { const y = 1 - 2 * (i + .5) / n, rr = Math.sqrt(Math.max(0, 1 - y * y)), p = i * 2.399963; return [Math.cos(p) * rr * r, y * r, Math.sin(p) * rr * r]; }
+const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], mul = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
+const nrm = a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+/* REGLE D'ESPACEMENT (documentee dans le README) :
+   rayon de l'amas autour de son parent = BASE_R x (1 + 0,35 x racine(nombre d'enfants)), BASE_R = 52 (environ +60 % par rapport a la version precedente) ;
+   les enfants sont repartis regulierement sur une sphere de Fibonacci de ce rayon ;
+   puis une relaxation impose une distance minimale DMIN = 40 unites entre deux neurones quelconques (le seuil ne baisse jamais).
+   Plus un coeur de neurones est grand, plus ses neurones s'ecartent. Le plafond de 300 noeuds visibles reste. */
+const spread = k => BASE_R * (1 + .35 * Math.sqrt(k));
+/* fond : étoiles (parallaxe), nébuleuse, réseau de synapses */
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const R1 = rng(7), STARS = Array.from({ length: 260 }, () => { const r = 700 + R1() * 1300, a = R1() * 6.2832, y = R1() * 2 - 1, rr = Math.sqrt(1 - y * y); return { p: [Math.cos(a) * rr * r, y * r, Math.sin(a) * rr * r], s: .5 + R1() * 1.3, ph: R1() * 6.28 }; });
+const NET = Array.from({ length: 48 }, () => [R1(), R1()]), NETE = [];
+for (let i = 0; i < NET.length; i++) for (let j = i + 1; j < NET.length; j++) if (Math.hypot(NET[i][0] - NET[j][0], (NET[i][1] - NET[j][1]) * .6) < .17) NETE.push([i, j]);
+function sizeCanvas(c) { const dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight; if (c.width !== Math.round(W * dpr) || c.height !== Math.round(H * dpr)) { c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); } return [W, H, dpr]; }
+function drawBg() {
+  const [W, H, dpr] = sizeCanvas(bgc); if (!W || !H) return;
+  bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const g = bctx.createLinearGradient(0, 0, W, H); g.addColorStop(0, "#040813"); g.addColorStop(1, "#070b1f"); bctx.fillStyle = g; bctx.fillRect(0, 0, W, H);
+  const ox = Math.sin(B.yaw) * 60, oy = B.pitch * 50;
+  const neb = (x, y, r, c1) => { const q = bctx.createRadialGradient(x, y, 0, x, y, r); q.addColorStop(0, c1); q.addColorStop(1, "rgba(0,0,0,0)"); bctx.fillStyle = q; bctx.fillRect(0, 0, W, H); };
+  neb(W * .28 - ox, H * .32 - oy, Math.max(W, H) * .6, "rgba(40,70,190,.22)"); neb(W * .78 - ox * 1.4, H * .7 - oy * 1.4, Math.max(W, H) * .55, "rgba(110,50,200,.18)");
+  bctx.lineWidth = .6; bctx.strokeStyle = "rgba(150,180,255,.07)"; bctx.beginPath();
+  const nx = i => NET[i][0] * (W + 80) - 40 - ox * .6, ny = i => NET[i][1] * (H + 80) - 40 - oy * .6;
+  for (const [i, j] of NETE) { bctx.moveTo(nx(i), ny(i)); bctx.lineTo(nx(j), ny(j)); } bctx.stroke();
+  bctx.fillStyle = "rgba(170,200,255,.16)"; for (let i = 0; i < NET.length; i++) { bctx.beginPath(); bctx.arc(nx(i), ny(i), 1.6, 0, 7); bctx.fill(); }
+  const cy = Math.cos(B.yaw), sy = Math.sin(B.yaw), cp = Math.cos(B.pitch), sp = Math.sin(B.pitch), k0 = Math.min(W, H) * 1.1 / 3200, off = mul(B.target, .25);
+  for (const s of STARS) { const x0 = s.p[0] - off[0], y0 = s.p[1] - off[1], z0 = s.p[2] - off[2], x1 = x0 * cy + z0 * sy, z1 = -x0 * sy + z0 * cy, y2 = y0 * cp - z1 * sp, z2 = y0 * sp + z1 * cp, k = k0 * 3200 / (z2 + 3200);
+    const sx = W / 2 + x1 * k, sY = H / 2 + y2 * k; if (sx < -5 || sx > W + 5 || sY < -5 || sY > H + 5) continue;
+    bctx.fillStyle = "rgba(220,230,255," + ((.35 + .4 * (1 - (z2 + 2000) / 4000)) * (.72 + .28 * Math.sin(B.tw * .45 + s.ph))).toFixed(3) + ")"; bctx.beginPath(); bctx.arc(sx, sY, s.s * (.7 + .5 * (3200 / (z2 + 3200))), 0, 7); bctx.fill(); }
+}
+async function brainLoad() {
+  let t; try { t = await api("/api/tree"); } catch (e) { $("#tree").textContent = "Impossible de lire l'arborescence."; return; }
+  B.nodes.clear();
+  for (const n of t.nodes) { n.children = []; n.vchildren = []; n.vparent = null; n.pos = [0, 0, 0]; B.nodes.set(n.id, n); }
+  for (const n of t.nodes) if (n.parent !== null) B.nodes.get(n.parent).children.push(n);
+  for (const n of t.nodes) n.children.sort((a, b) => (a.type === "dir" ? 0 : 1) - (b.type === "dir" ? 0 : 1) || a.label.localeCompare(b.label, "fr"));
+  B.root = B.nodes.get(""); B.zones = t.zones; B.zones.forEach(z => { ZCOL[z.id] = z.color || "#94a3b8"; });
+  B.zones.forEach((z, i) => { const hub = { id: "zone:" + z.id, label: z.label, name: z.label, type: "zone", zone: z.id, children: [], vchildren: [], parent: "", vparent: "", size: 0, mtime: 0, count: z.count, desc: z.count + " éléments sont rangés dans ce menu.", pos: fib(i, B.zones.length, 400) }; B.nodes.set(hub.id, hub); B.root.vchildren.push(hub); });
+  for (const c of B.root.children) { const hub = B.nodes.get("zone:" + c.zone); if (hub) { hub.vchildren.push(c); c.vparent = hub.id; } }
+  for (const n of t.nodes) if (n.id !== "") { n.vchildren = n.children; if (n.parent !== "") n.vparent = n.parent; }
+  const place = n => { const k = n.vchildren.length; if (!k) return; const r = spread(k), par = n.vparent !== null && n.vparent !== undefined ? B.nodes.get(n.vparent).pos : [0, 0, 0], o = nrm(sub(n.pos, par)), c = add(n.pos, mul(o, .55 * r)); n.ccenter = c;
+    n.vchildren.forEach((ch, i) => { ch.pos = add(c, fib(i, k, r)); place(ch); }); };
+  B.root.vchildren.forEach(place);
+  const all = [...B.nodes.values()].filter(n => n.type !== "zone" && n.id !== "");   // légère répulsion : aucune pastille ne touche sa voisine
+  for (let it = 0; it < 6; it++) for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) { const d = sub(all[j].pos, all[i].pos), l = Math.hypot(...d); if (l < DMIN && l > 0) { const m = mul(d, (DMIN - l) / l / 2); all[j].pos = add(all[j].pos, m); all[i].pos = sub(all[i].pos, m); } }
+  B.loaded = true; computeVisible(); renderTree(); requestDraw();
+}
+function passes(n) { return n.type === "dir" || n.type === "zone" || B.filters[TYPEF[n.type]] !== false; }
+function computeVisible() {
+  const out = [B.root], q = [B.root]; B.truncated300 = false;
+  while (q.length) { const n = q.shift(); if (!B.expanded.has(n.id)) continue;
+    for (const c of n.vchildren) { if (!passes(c)) continue; if (out.length >= MAXV) { B.truncated300 = true; break; } out.push(c); q.push(c); } }
+  B.vis = out; B.visSet = new Set(out.map(n => n.id));
+}
+function project(p, W, Hh) {
+  const x0 = p[0] - B.target[0], y0 = p[1] - B.target[1], z0 = p[2] - B.target[2];
+  const cy = Math.cos(B.yaw), sy = Math.sin(B.yaw), cp = Math.cos(B.pitch), sp = Math.sin(B.pitch);
+  const x1 = x0 * cy + z0 * sy, z1 = -x0 * sy + z0 * cy, y2 = y0 * cp - z1 * sp, z2 = y0 * sp + z1 * cp, zz = z2 + B.D;
+  if (zz < 30) return null;
+  const k = Math.min(W, Hh) * 1.1 / zz;
+  return { x: W / 2 + x1 * k, y: Hh / 2 + y2 * k, k, z: z2 };
+}
+function toCam(p) { const x0 = p[0] - B.target[0], y0 = p[1] - B.target[1], z0 = p[2] - B.target[2], cy = Math.cos(B.yaw), sy = Math.sin(B.yaw), cp = Math.cos(B.pitch), sp = Math.sin(B.pitch); const x1 = x0 * cy + z0 * sy, z1 = -x0 * sy + z0 * cy; return [x1, y0 * cp - z1 * sp, y0 * sp + z1 * cp]; }
+function camToWorld(x1, y2, z2) { const cy = Math.cos(B.yaw), sy = Math.sin(B.yaw), cp = Math.cos(B.pitch), sp = Math.sin(B.pitch), y0 = y2 * cp + z2 * sp, z1 = -y2 * sp + z2 * cp; return [x1 * cy - z1 * sy, y0, x1 * sy + z1 * cy]; }
+function pathIds(id) { const s = new Set(); let n = B.nodes.get(id); while (n) { s.add(n.id); n = n.vparent === null || n.vparent === undefined ? null : B.nodes.get(n.vparent); } return s; }
+const hex2rgba = (hx, a) => { const v = parseInt(hx.slice(1), 16); return `rgba(${v >> 16},${v >> 8 & 255},${v & 255},${a})`; };
+function overlap(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
+function draw() {
+  B.pending = false;
+  const [W, Hh, dpr] = sizeCanvas(cv); if (!W || !Hh) return;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, Hh); drawBg();
+  B.zrects = []; B.placed = []; B.proj = new Map();
+  if (!B.loaded) return;
+  const P = new Map(); for (const n of B.vis) { const p = project(n.pos, W, Hh); if (p) P.set(n.id, p); }
+  B.proj = P;
+  const selPath = B.sel !== null ? pathIds(B.sel) : new Set(), near = z => clamp(1 - (z + 380) / 760, 0, 1), lit = B.lit;
+  ctx.lineCap = "round";
+  for (const n of B.vis) { if (n.vparent === null || n.vparent === undefined) continue; const a = P.get(n.id), b = P.get(n.vparent); if (!a || !b) continue;
+    const hot = selPath.has(n.id) && selPath.has(n.vparent), kid = B.sel !== null && n.vparent === B.sel, col = ZCOL[n.zone] || "#94a3b8", d = .85 + .15 * near((a.z + b.z) / 2);
+    if (hot) { ctx.strokeStyle = "rgba(160,200,255," + (.22 * lit) + ")"; ctx.lineWidth = 5 * lit + 1; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(a.x, a.y); ctx.stroke();
+      ctx.strokeStyle = "rgba(255,255,255," + (.3 + .7 * lit) + ")"; ctx.lineWidth = 1 + 1.1 * lit; }
+    else if (n.type === "zone") { ctx.strokeStyle = hex2rgba(col, .6 * d); ctx.lineWidth = 1.4; }
+    else if (kid) { ctx.strokeStyle = hex2rgba(col, .6 * d); ctx.lineWidth = 1; }
+    else { ctx.strokeStyle = hex2rgba(col, .3 * d); ctx.lineWidth = .8; }
+    ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(a.x, a.y); ctx.stroke(); }
+  const order = [...B.vis].filter(n => P.has(n.id)).sort((a, b) => P.get(b.id).z - P.get(a.id).z);
+  for (const n of order) { const p = P.get(n.id), c = ZCOL[n.zone] || "#fff", al = .5 + .5 * near(p.z);
+    const base = n === B.root ? 14 : n.type === "zone" ? 11 : n.type === "dir" ? 8 : 5.2, r = Math.max(2.5, Math.min(18, base * p.k * 1.5));
+    p.r = r; const on = n.id === B.sel || n.id === B.hover;
+    ctx.fillStyle = hex2rgba(c, .10 * al); ctx.beginPath(); ctx.arc(p.x, p.y, r * 3.2, 0, 7); ctx.fill();
+    ctx.fillStyle = hex2rgba(c, .22 * al); ctx.beginPath(); ctx.arc(p.x, p.y, r * 1.9, 0, 7); ctx.fill();
+    ctx.fillStyle = hex2rgba(c, al); ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255," + (.55 * al) + ")"; ctx.beginPath(); ctx.arc(p.x, p.y, r * .38, 0, 7); ctx.fill();
+    if ((n.type === "dir" || n.type === "zone") && n !== B.root) { ctx.strokeStyle = hex2rgba(c, .9 * al); ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(p.x, p.y, r * 1.45, 0, 7); ctx.stroke(); }
+    if (on) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, r * 1.9, 0, 7); ctx.stroke(); } }
+  /* étiquettes : menus généraux d'abord (toujours), puis noeuds importants, sans jamais se chevaucher */
+  const placed = B.placed;
+  const tryPlace = rect => { if (rect.x < 4 || rect.y < 54 || rect.x + rect.w > W - 4 || rect.y + rect.h > Hh - 26) return false; for (const q of placed) if (overlap(rect, q)) return false; placed.push(rect); return true; };
+  const counts = {}; for (const n of B.vis) if (n !== B.root && n.type !== "zone") counts[n.zone] = (counts[n.zone] || 0) + 1;
+  ctx.textBaseline = "alphabetic"; ctx.textAlign = "left"; ctx.lineJoin = "round";
+  const chosen = new Map();   // id -> {ox, oy, w, text, hot}  (decalage par rapport au noeud)
+  const placeLabel = (id, hot) => {
+    const n = B.nodes.get(id), p = P.get(id); if (!p || !n || n.type === "zone" || chosen.has(id)) return false;
+    ctx.font = "13px 'Segoe UI',system-ui,sans-serif"; const w = ctx.measureText(n.label).width + 6, hgt = 18, r = p.r + 5;
+    const spots = [[p.x + r, p.y - hgt / 2], [p.x - r - w, p.y - hgt / 2], [p.x - w / 2, p.y - r - hgt], [p.x - w / 2, p.y + r]];
+    for (const [x, y] of spots) if (tryPlace({ x, y, w, h: hgt })) { chosen.set(id, { ox: x - p.x, oy: y - p.y, w, text: n.label, hot }); return true; }
+    return false;
+  };
+  /* priorite : selection, chemin jusqu'au centre, survol, menus generaux, puis les noeuds les plus proches de la camera */
+  if (B.sel !== null) placeLabel(B.sel, true);
+  selPath.forEach(id => placeLabel(id, true));
+  if (B.hover !== null) placeLabel(B.hover, true);
+  const zl = B.zones.map(z => { const p = P.get("zone:" + z.id); return p && { z, p }; }).filter(Boolean).sort((a, b) => a.p.z - b.p.z);
+  for (const { z, p } of zl) {
+    const c = ZCOL[z.id], t1 = z.label.toUpperCase(), t2 = (counts[z.id] || 0) + " sur " + z.count + " éléments";
+    ctx.font = "700 13px 'Segoe UI',system-ui,sans-serif"; const w1 = ctx.measureText(t1).width; ctx.font = "12px 'Segoe UI',system-ui,sans-serif"; const w2 = ctx.measureText(t2).width;
+    const w = Math.max(w1, w2) + 4; let rect = null;
+    for (const yy of [p.y - p.r * 1.9 - 38, p.y + p.r * 1.9 + 6]) { const r0 = { x: clamp(p.x - w / 2, 4, W - 4 - w), y: yy, w, h: 34, zone: z.id }; if (tryPlace(r0)) { rect = r0; break; } }
+    if (!rect) continue;
+    B.zrects.push(rect); const al = .7 + .3 * near(p.z);
+    ctx.strokeStyle = "rgba(5,10,22,.9)"; ctx.lineWidth = 4;
+    ctx.font = "700 13px 'Segoe UI',system-ui,sans-serif"; ctx.strokeText(t1, rect.x, rect.y + 14); ctx.fillStyle = hex2rgba(c, al); ctx.fillText(t1, rect.x, rect.y + 14);
+    ctx.font = "12px 'Segoe UI',system-ui,sans-serif"; ctx.strokeText(t2, rect.x, rect.y + 30); ctx.fillStyle = "rgba(214,226,255," + al + ")"; ctx.fillText(t2, rect.x, rect.y + 30);
+  }
+  /* autres noeuds : seulement ceux de l'hemisphere tourne vers l'utilisateur (plus pres que le point regarde), 14 au plus */
+  const cand = B.vis.filter(n => n.type !== "zone" && n !== B.root && P.has(n.id) && !chosen.has(n.id) && P.get(n.id).z <= 0 && P.get(n.id).x > 6 && P.get(n.id).x < W - 6 && P.get(n.id).y > 54 && P.get(n.id).y < Hh - 26)
+    .sort((a, b) => P.get(a.id).z - P.get(b.id).z);
+  let extra = 0; for (const n of cand) { if (extra >= MAXLAB) break; if (placeLabel(n.id, false)) extra++; }
+  /* fondu : les etiquettes entrent et sortent progressivement */
+  const la = B.la, lo = B.lo; let fading = false;
+  chosen.forEach((v, id) => { lo.set(id, v); la.set(id, Math.min(1, (la.get(id) || 0) + .2)); });
+  for (const [id, a] of [...la]) if (!chosen.has(id)) { const na = a - .12; if (na <= 0 || !P.has(id)) { la.delete(id); lo.delete(id); } else la.set(id, na); }
+  ctx.font = "13px 'Segoe UI',system-ui,sans-serif";
+  for (const [id, a] of la) { const v = lo.get(id), p = P.get(id); if (!v || !p) continue; if (a < 1) fading = true;
+    ctx.globalAlpha = a; ctx.strokeStyle = "rgba(5,10,22,.92)"; ctx.lineWidth = 4; ctx.strokeText(v.text, p.x + v.ox + 3, p.y + v.oy + 13);
+    ctx.fillStyle = v.hot ? "#fff" : "#dbe6ff"; ctx.fillText(v.text, p.x + v.ox + 3, p.y + v.oy + 13); }
+  ctx.globalAlpha = 1; B.fading = fading; B.labelCount = chosen.size;
+  if (fading && !B.anim) startAnim();
+}
+function requestDraw() { if (!B.pending) { B.pending = true; requestAnimationFrame(draw); } }
+function startAnim() { if (B.anim) return; B.anim = true; requestAnimationFrame(step); }
+function step() {
+  let moving = false;
+  if (B.lit < 1) { B.lit = Math.min(1, B.lit + .07); moving = true; }
+  if (B.fading) moving = true;
+  if (Math.abs(B.tD - B.D) > .5) { B.D += (B.tD - B.D) * .22; moving = true; } else B.D = B.tD;
+  const d = Math.hypot(...sub(B.tTarget, B.target)); if (d > .3) { B.target = add(B.target, mul(sub(B.tTarget, B.target), .18)); moving = true; } else B.target = B.tTarget.slice();
+  draw();
+  if (moving || drag) requestAnimationFrame(step); else B.anim = false;
+}
+/* commandes : clic gauche = déplacer, clic molette = tourner autour de la sélection, molette = zoom vers le curseur */
+let drag = null;
+cv.addEventListener("contextmenu", e => e.preventDefault());
+cv.addEventListener("auxclick", e => e.preventDefault());
+cv.addEventListener("mousedown", e => { if (e.button === 1) e.preventDefault(); });
+cv.addEventListener("pointerdown", e => {
+  if (e.button === 1) e.preventDefault();
+  if (e.button !== 0 && e.button !== 1) return;
+  try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+  drag = { mode: e.button === 1 ? "rot" : "pan", x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, moved: false };
+  if (drag.mode === "rot") { const sn = B.sel !== null ? B.nodes.get(B.sel) : null; drag.pivot = sn && B.visSet.has(sn.id) ? sn.pos.slice() : [0, 0, 0]; drag.cam = toCam(drag.pivot); B.tTarget = B.target.slice(); }
+  cv.classList.add("drag"); startAnim();
+});
+cv.addEventListener("pointermove", e => {
+  if (drag) { const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 4) drag.moved = true;
+    if (drag.mode === "pan") { const k0 = Math.min(cv.clientWidth, cv.clientHeight) * 1.1 / B.D; B.target = add(B.target, camToWorld(-dx / k0, -dy / k0, 0)); B.tTarget = B.target.slice(); }
+    else { B.yaw += dx * .007; B.pitch = clamp(B.pitch + dy * .007, -1.4, 1.4); B.target = sub(drag.pivot, camToWorld(...drag.cam)); B.tTarget = B.target.slice(); }
+    drag.x = e.clientX; drag.y = e.clientY; return; }
+  const hv = hitNode(e), id = hv ? hv.id : null;
+  if (id !== B.hover) { B.hover = id; cv.style.cursor = (hv || hitZone(e)) ? "pointer" : "grab"; requestDraw(); }
+});
+cv.addEventListener("pointerup", e => { cv.classList.remove("drag"); const d = drag; drag = null; if (d && d.mode === "pan" && !d.moved) clickAt(e); else startAnim(); });
+cv.addEventListener("pointerleave", () => { if (!drag && B.hover !== null) { B.hover = null; requestDraw(); } });
+cv.addEventListener("wheel", e => {
+  e.preventDefault(); const W = cv.clientWidth, H = cv.clientHeight, [mx, my] = cpos(e), f = Math.min(W, H) * 1.1;
+  const nD = clamp(B.D * Math.exp(e.deltaY * .0012), 250, 2500), dd = 1 / (f / B.D) - 1 / (f / nD);
+  B.target = add(B.target, camToWorld((mx - W / 2) * dd, (my - H / 2) * dd, 0)); B.tTarget = B.target.slice(); B.D = B.tD = nD; requestDraw();
+}, { passive: false });
+cv.addEventListener("dblclick", e => { const n = hitNode(e); if (n) openNodeModal(n); });
+function cpos(e) { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+function hitZone(e) { const [x, y] = cpos(e); return B.zrects.find(r => x >= r.x - 4 && x <= r.x + r.w + 4 && y >= r.y - 4 && y <= r.y + r.h + 10); }
+function hitNode(e) {
+  const [x, y] = cpos(e); let best = null, bd = 1e9;
+  for (const [id, p] of B.proj || []) { const d = Math.hypot(p.x - x, p.y - y), lim = (p.r || 6) * 1.5 + 5; if (d <= lim && d - p.z * .01 < bd) { bd = d - p.z * .01; best = B.nodes.get(id); } }
+  return best;
+}
+function clickAt(e) { const n = hitNode(e); if (n) { selectNode(n.id, { toggle: true }); return; } const z = hitZone(e); if (z) selectNode("zone:" + z.zone, { toggle: true }); }
+function selectNode(id, o = {}) {
+  const n = B.nodes.get(id); if (!n) return;
+  let p = n.vparent; while (p) { B.expanded.add(p); p = B.nodes.get(p).vparent; }
+  let q = n.parent; while (q !== null && q !== undefined) { B.treeOpen.add(q); q = B.nodes.get(q).parent; }
+  const folder = n.type === "dir" || n.type === "zone"; let opened = false;
+  if (folder && id !== "") { if (o.toggle && B.expanded.has(id)) { B.expanded.delete(id); if (n.type === "dir") B.treeOpen.delete(id); } else { B.expanded.add(id); if (n.type === "dir") B.treeOpen.add(id); opened = true; } }
+  B.sel = id; B.lit = 0; computeVisible();
+  B.tTarget = opened && n.ccenter ? n.ccenter.slice() : n.pos.slice();
+  if (opened && n.vchildren.length) B.tD = clamp(3.3 * (1.55 * spread(n.vchildren.length) + 30), 300, 1700);
+  startAnim(); renderTree(true); renderDetails(n);
+}
+function renderDetails(n) {
+  const d = $("#det"); d.replaceChildren();
+  d.append(h("h3", { text: n.id === "" ? AGENT : n.label }), h("span", { class: "tag", text: n.id === "" ? "Centre de la carte" : n.type === "zone" ? "Menu général" : TYPE_FR[n.type] }));
+  if (n.name !== n.label && n.id !== "" && n.type !== "zone") d.append(h("p", { class: "kv", text: "Nom réel : " + n.name }));
+  if (n.desc) d.append(h("p", { text: n.desc }));
+  if (n.type === "dir" || n.type === "zone") { const k = kidsOf(n).length; d.append(h("p", { class: "kv", text: k + " élément" + (k > 1 ? "s" : "") + " directement dedans." })); }
+  else d.append(h("p", { class: "kv", text: fmtSize(n.size) + ", modifié le " + fmtDate(n.mtime) }));
+  d.append(h("button", { class: "btn", type: "button", text: "Voir le schéma", onclick: () => openNodeModal(n) }));
+  if (n.type !== "dir" && n.type !== "zone") {
+    const pre = h("pre", { text: "Chargement de l'aperçu..." }); d.append(h("p", { class: "kv", text: "Début du fichier (60 lignes au plus)" }), pre);
+    api("/api/file?path=" + encodeURIComponent(n.id)).then(f => { if (B.sel === n.id) pre.textContent = f.binary ? "Fichier non lisible." : f.text; }).catch(() => { pre.textContent = "Aperçu indisponible."; });
+  }
+}
+/* arborescence */
+function renderTree(scroll) {
+  const box = $("#tree"); box.replaceChildren(); if (!B.loaded) return;
+  const q = $("#q").value.trim().toLowerCase(); let match = null;
+  if (q) { match = new Set(); for (const n of B.nodes.values()) if (n.type !== "zone" && n.id && (n.label.toLowerCase().includes(q) || n.name.toLowerCase().includes(q))) { let p = n.id; while (p !== null) { match.add(p); p = B.nodes.get(p).parent; } } }
+  let count = 0; const frag = document.createDocumentFragment();
+  const walk = (n, depth) => {
+    if (match && !match.has(n.id)) return; if (count++ > 600) return;
+    const open = match ? true : B.treeOpen.has(n.id), hasKids = n.children.length > 0;
+    const row = h("div", { class: "tn" + (B.sel === n.id ? " sel" : ""), style: "padding-left:" + (8 + depth * 16) + "px", "data-id": n.id },
+      h("span", { class: "chev" + (open && hasKids ? " open" : ""), onclick: ev => { ev.stopPropagation(); if (!hasKids) return; if (B.treeOpen.has(n.id)) B.treeOpen.delete(n.id); else B.treeOpen.add(n.id); renderTree(); } }, hasKids ? icon("chev", 14) : null),
+      h("span", { class: "zd", style: "background:" + (ZCOL[n.zone] || "#fff") }), h("span", { class: "lb", text: n.id === "" ? AGENT : n.label, title: n.name }));
+    row.addEventListener("click", () => selectNode(n.id, { toggle: false }));
+    frag.append(row); if (open && hasKids) n.children.forEach(c => walk(c, depth + 1));
+  };
+  walk(B.root, 0); box.append(frag);
+  if (scroll) { const s = box.querySelector(".sel"); if (s) s.scrollIntoView({ block: "nearest" }); }
+}
+$("#q").addEventListener("input", () => renderTree());
+document.querySelectorAll("#ctl .chip[data-f]").forEach(b => b.addEventListener("click", () => { const f = b.dataset.f; B.filters[f] = !B.filters[f]; b.classList.toggle("on", B.filters[f]); computeVisible(); requestDraw(); }));
+$("#collapse").addEventListener("click", () => { B.expanded = new Set([""]); B.treeOpen = new Set([""]); B.sel = null; B.tTarget = [0, 0, 0]; B.tD = 780; computeVisible(); renderTree(); startAnim(); $("#det").replaceChildren(h("p", { class: "kv", text: "Cliquez sur un point de la carte ou sur un élément de l'arborescence." })); });
+function brainShow() { if (!B.loaded) brainLoad(); else computeVisible(); requestAnimationFrame(draw); }
+new ResizeObserver(() => requestDraw()).observe($("#stage"));
+/* scintillement du fond : 16 images par seconde au plus, seulement si l'onglet Cerveau est visible */
+setInterval(() => { if (tab === "brain" && !document.hidden) { B.tw++; drawBg(); } }, 60);
+window.__B = B;
+
+/* ---------- boucle de rafraîchissement ---------- */
+/* ---------- demarrage : nom de l'agent et ecran d'accueil ---------- */
+async function boot() {
+  try {
+    const c = await api("/api/config");
+    if (c.name) AGENT = c.name;
+    if (c.needs_root) {
+      const w = $("#welcome"); w.style.display = "flex";
+      const go = async () => {
+        $("#werr").textContent = "";
+        const r = await fetch("/api/setup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ root: $("#wdir").value }) });
+        const j = await r.json().catch(() => ({}));
+        if (r.ok) location.reload(); else $("#werr").textContent = j.error || "Dossier refusé.";
+      };
+      $("#wgo").onclick = go;
+      $("#wdir").addEventListener("keydown", e => { if (e.key === "Enter") go(); });
+    }
+  } catch (e) { /* le reste de la page affiche ses propres messages */ }
+  pollLive();
+}
+boot();
+
+setInterval(() => { pollLive(); if (tab === "agents") loadAgents(); }, 2000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) { pollLive(); if (tab === "agents") loadAgents(); } });
+</script>
+</body>
+</html>

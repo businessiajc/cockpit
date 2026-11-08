@@ -1,0 +1,54 @@
+name: Construire Cockpit.exe
+
+# Voie normale de publication : pousser une etiquette de version (par exemple v1.0.0)
+# construit l'exe sur un Windows propre et le joint a la version avec son SHA-256.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Tests
+        shell: pwsh
+        run: python -I test_cockpit.py
+
+      - name: Icone
+        shell: pwsh
+        run: python -I make_icon.py cockpit.ico
+
+      - name: Construction de l'exe
+        shell: pwsh
+        run: |
+          python -m pip install pyinstaller==6.22.3
+          $c = (Get-Location).Path
+          pyinstaller --noconfirm --onefile --console --name Cockpit --icon "$c\cockpit.ico" `
+            --add-data "$c\index.html;." --distpath "$c\dist" --workpath "$c\build" --specpath "$c\build" server.py
+
+      - name: Empreinte SHA-256
+        shell: pwsh
+        run: |
+          $h = (Get-FileHash dist\Cockpit.exe -Algorithm SHA256).Hash
+          "$h  Cockpit.exe" | Out-File -Encoding ascii dist\SHA256.txt
+          Get-Content dist\SHA256.txt
+
+      - name: Joindre a la version
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          gh release view $tag 2>$null
+          if ($LASTEXITCODE -ne 0) { gh release create $tag --title "Cockpit $tag" --notes "Cockpit.exe non signe : voir LISEZ-MOI.txt. Verifiez l'empreinte SHA-256 jointe." }
+          gh release upload $tag dist\Cockpit.exe dist\SHA256.txt release\LISEZ-MOI.txt AGENTS.exemple.json --clobber

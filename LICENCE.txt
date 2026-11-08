@@ -1,0 +1,21 @@
+COCKPIT - LICENCE D'UTILISATION (version provisoire)
+
+Copyright (c) 2026 Jarod Capella. Tous droits reserves.
+
+Vous avez le droit, gratuitement :
+- d'utiliser le logiciel sur vos propres ordinateurs, pour un usage personnel ou professionnel ;
+- de lire le code source et de le tester ;
+- de proposer des corrections ou des idees a l'auteur.
+
+Sans accord ecrit prealable de l'auteur, il est interdit :
+- de vendre, louer, redistribuer ou republier le logiciel, ses copies ou des versions modifiees ;
+- de presenter le logiciel comme votre oeuvre ;
+- de retirer cette notice ou les mentions d'auteur.
+
+GARANTIE. Le logiciel est fourni "tel quel", sans garantie d'aucune sorte, expresse ou implicite, y compris de bon fonctionnement ou d'adaptation a un usage particulier. L'auteur n'est pas responsable des dommages resultant de son utilisation.
+
+MARQUES. Cockpit n'est ni affilie, ni approuve par Anthropic. Claude et Claude Code sont des marques d'Anthropic.
+
+Ce texte est provisoire. Il n'a pas ete relu par un juriste. L'auteur peut publier les versions futures sous une autre licence ; les versions deja publiees gardent la licence sous laquelle elles l'ont ete.
+
+English summary: free to use on your own computers; no resale, redistribution or republication of the software or modified copies without the author's prior written permission; provided "as is", without warranty. Not affiliated with Anthropic.

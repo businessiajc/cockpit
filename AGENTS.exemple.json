@@ -1,0 +1,22 @@
+{
+  "agents": [
+    {
+      "id": "veilleur-prix",
+      "nom": "Veilleur de prix",
+      "role": "Surveille chaque matin le prix de quelques produits et note les baisses.",
+      "type": "planifie",
+      "horaires": ["08:00", "20:00"],
+      "fichier": "agents/veilleur_prix.py",
+      "etat": "actif"
+    },
+    {
+      "id": "redacteur",
+      "nom": "Rédacteur de brouillons",
+      "role": "Prépare des brouillons de textes, que vous relisez avant de les utiliser.",
+      "type": "manuel",
+      "horaires": [],
+      "fichier": "agents/redacteur.py",
+      "etat": "pause"
+    }
+  ]
+}

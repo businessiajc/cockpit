@@ -1,0 +1,60 @@
+COCKPIT - mode d'emploi pour debutants
+======================================
+
+A quoi ca sert
+--------------
+Cockpit est une page web qui s'ouvre sur VOTRE ordinateur et vous montre, en
+phrases simples, ce que fait votre agent Claude Code : ce qui vient de se
+passer, vos agents, et une carte de vos fichiers.
+
+1. Telecharger
+--------------
+Recuperez le fichier Cockpit.exe et placez-le dans un dossier de votre choix
+(par exemple Documents\Cockpit). Pas d'installation.
+
+2. Lancer
+---------
+Double-cliquez sur Cockpit.exe. Une petite fenetre noire s'ouvre avec le
+message "Cockpit tourne : fermez cette fenetre pour arreter". Votre navigateur
+s'ouvre sur la page de Cockpit (adresse http://127.0.0.1:8780/).
+
+- Cockpit cherche tout seul vos sessions Claude Code et le dossier de travail.
+- S'il ne le trouve pas, la page vous demande le dossier a suivre : tapez-le
+  (par exemple C:\Users\Moi\Documents\MonProjet) et validez. Votre choix est
+  memorise dans le fichier config.json, a cote de Cockpit.exe.
+- Onglet "Mes agents" : copiez AGENTS.exemple.json dans votre dossier de travail,
+  renommez-le AGENTS.json et changez les noms (la page explique comment).
+
+3. Ce que Windows peut afficher
+-------------------------------
+Au premier lancement, Windows peut afficher "Windows a protege votre ordinateur"
+(SmartScreen). C'est normal : le programme n'est pas signe. La signature de code
+est payante et n'a pas ete faite. Pour continuer : cliquez sur "Informations
+complementaires", puis sur "Executer quand meme".
+Pour verifier que votre fichier est le bon, comparez son empreinte avec SHA256.txt :
+  PowerShell :  Get-FileHash .\Cockpit.exe -Algorithm SHA256
+Si les deux suites de caracteres sont differentes, ne le lancez pas.
+Votre antivirus peut aussi le bloquer ou le mettre en quarantaine : c'est frequent
+avec les programmes de ce type non signes. Dans ce cas, utilisez Lancer-Cockpit.bat
+(version sans exe, il faut Python ou uv) ou demandez de l'aide.
+
+4. Vie privee
+-------------
+Cockpit lit seulement des fichiers sur votre ordinateur. Il n'envoie rien sur
+Internet et n'utilise aucun compte. Il n'ecoute que sur votre propre machine
+(127.0.0.1) : personne d'autre sur votre reseau ne peut y acceder. Les mots de passe
+et cles reconnaissables sont masques a l'ecran. Seule chose ecrite : config.json
+(le dossier que vous avez choisi).
+
+5. Arreter
+----------
+Fermez la fenetre noire (ou appuyez sur Ctrl+C dedans). Fermer l'onglet du
+navigateur n'arrete pas le programme.
+
+6. Desinstaller
+---------------
+Fermez la fenetre noire, puis supprimez Cockpit.exe et config.json. Rien d'autre
+n'est installe sur votre ordinateur.
+
+Sans l'exe : double-cliquez sur Lancer-Cockpit.bat (a placer dans le dossier de
+Cockpit, avec server.py ; il faut uv ou Python).
