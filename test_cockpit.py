@@ -648,7 +648,9 @@ class TestIcons(unittest.TestCase):
 
 class TestAutodetect(unittest.TestCase):
     def setUp(self):
-        self.d = tempfile.mkdtemp()
+        # realpath : sous Windows, le dossier temporaire peut etre donne en noms courts 8.3 (RUNNER~1 sur les
+        # executeurs GitHub) ; or le nom de session est encode depuis le vrai chemin, en noms longs.
+        self.d = os.path.realpath(tempfile.mkdtemp())
         # faux profil utilisateur : <d>/home/.claude/projects/<sous-dossiers de sessions>
         self.home = os.path.join(self.d, "home")
         self.proj = os.path.join(self.home, ".claude", "projects")
@@ -689,6 +691,55 @@ class TestAutodetect(unittest.TestCase):
         self.assertEqual(os.path.normcase(server.decode_project_name(rest, start=drive)), os.path.normcase(work))
         self.assertIsNone(server.decode_project_name("Inexistant-xyz", start=drive))
         self.assertIsNone(server.decode_project_name("pas un nom de session"))
+
+    def test_decode_needs_long_names(self):
+        """Cause de l'echec sur GitHub : un chemin en noms courts 8.3 s'encode autrement que le vrai chemin."""
+        if sys.platform != "win32":
+            self.skipTest("noms courts : Windows seulement")
+        import ctypes
+        work = os.path.join(self.d, "Mon projet long")
+        os.makedirs(work)
+        buf = ctypes.create_unicode_buffer(600)
+        if not ctypes.windll.kernel32.GetShortPathNameW(work, buf, 600) or buf.value == work:
+            self.skipTest("noms courts desactives sur ce volume")
+        self.assertEqual(os.path.normcase(server.decode_project_name(server.encode_project_name(work))),
+                         os.path.normcase(work))
+        self.assertEqual(os.path.normcase(os.path.realpath(buf.value)), os.path.normcase(work))
+
+    def test_two_different_drives(self):
+        """Dossier de travail et dossier de sessions sur deux lecteurs differents."""
+        if sys.platform != "win32":
+            self.skipTest("lecteurs : Windows seulement")
+        other = tempfile.mkdtemp(dir=HERE)           # lecteur du programme (D: sur un executeur GitHub, souvent C: ailleurs)
+        try:
+            other = os.path.realpath(other)
+            if os.path.splitdrive(other)[0].upper() == os.path.splitdrive(self.d)[0].upper():
+                # meme lecteur : on cherche un autre lecteur inscriptible a la racine
+                alt = None
+                for letter in "CDEFGH":
+                    r = letter + ":\\"
+                    if os.path.isdir(r) and letter != os.path.splitdrive(self.d)[0][:1].upper():
+                        try:
+                            alt = tempfile.mkdtemp(dir=r)
+                            break
+                        except OSError:
+                            continue
+                if not alt:
+                    self.skipTest("un seul lecteur utilisable")
+                shutil.rmtree(other, ignore_errors=True)
+                other = os.path.realpath(alt)
+            work = os.path.join(other, "Mon projet-x")
+            os.makedirs(work)
+            # sessions sur le lecteur A (self.d), dossier de travail sur le lecteur B (other)
+            name = server.encode_project_name(work)
+            sess = self.mk_session(name, 1_000_000)                       # sans cwd : decodage par le nom
+            self.assertEqual(os.path.normcase(server.guess_root(sess)), os.path.normcase(work))
+            sess2 = self.mk_session("W--cwd", 2_000_000, cwd=work)       # avec cwd
+            self.assertEqual(os.path.normcase(server.guess_root(sess2)), os.path.normcase(work))
+            self.assertEqual(os.path.normcase(server.resolve_settings(None, None, {}, self.proj)[1]),
+                             os.path.normcase(work))
+        finally:
+            shutil.rmtree(other, ignore_errors=True)
 
     def test_decode_full_name_with_drive(self):
         if not os.path.splitdrive(self.d)[0]:
