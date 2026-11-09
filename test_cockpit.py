@@ -301,6 +301,46 @@ def ev(**k):
     return d
 
 
+class TestArret(unittest.TestCase):
+    """Arret propre : bouton Quitter (origine verifiee) et arret automatique sans signe de vie."""
+
+    def lancer(self, *extra):
+        d = tempfile.mkdtemp(); self.addCleanup(shutil.rmtree, d, True)
+        os.makedirs(os.path.join(d, "s"))
+        port = free_port()
+        proc = subprocess.Popen([sys.executable, "-I", os.path.join(HERE, "server.py"), "--port", str(port),
+                                 "--sessions", os.path.join(d, "s"), "--root", d, "--no-open", *extra],
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self.addCleanup(proc.kill)
+        for _ in range(50):
+            try:
+                socket.create_connection(("127.0.0.1", port), 0.2).close(); break
+            except OSError:
+                time.sleep(0.1)
+        return proc, port
+
+    def post(self, port, origin):
+        c = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+        c.request("POST", "/api/quit", body=b"", headers={"Origin": origin} if origin else {})
+        r = c.getresponse(); r.read(); c.close()
+        return r.status
+
+    def test_quit_refuse_depuis_autre_page_puis_accepte(self):
+        proc, port = self.lancer()
+        self.assertEqual(self.post(port, "http://evil.example"), 403)
+        self.assertEqual(self.post(port, None), 403)
+        time.sleep(0.5)
+        self.assertIsNone(proc.poll())
+        self.assertEqual(self.post(port, "http://127.0.0.1:%d" % port), 200)
+        proc.wait(10)
+
+    def test_arret_automatique_sans_ping(self):
+        proc, port = self.lancer("--idle-quit", "7")
+        c = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+        c.request("GET", "/api/ping"); self.assertEqual(c.getresponse().status, 200); c.close()
+        proc.wait(25)   # s'arrete tout seul (7 s sans ping + pas de verification de 5 s)
+
+
 class TestPhrases(unittest.TestCase):
     def ph(self, **k):
         return server.phrase_for(ev(**k))["text"]

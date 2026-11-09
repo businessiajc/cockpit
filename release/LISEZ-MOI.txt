@@ -14,9 +14,8 @@ Recuperez le fichier Cockpit.exe et placez-le dans un dossier de votre choix
 
 2. Lancer
 ---------
-Double-cliquez sur Cockpit.exe. Une petite fenetre noire s'ouvre avec le
-message "Cockpit tourne : fermez cette fenetre pour arreter". Votre navigateur
-s'ouvre sur la page de Cockpit (adresse http://127.0.0.1:8780/).
+Double-cliquez sur Cockpit.exe. Aucune fenetre noire : votre navigateur
+s'ouvre directement sur la page de Cockpit (adresse http://127.0.0.1:8780/).
 
 - Cockpit cherche tout seul vos sessions Claude Code et le dossier de travail.
 - S'il ne le trouve pas, la page vous demande le dossier a suivre : tapez-le
@@ -48,12 +47,12 @@ et cles reconnaissables sont masques a l'ecran. Seule chose ecrite : config.json
 
 5. Arreter
 ----------
-Fermez la fenetre noire (ou appuyez sur Ctrl+C dedans). Fermer l'onglet du
-navigateur n'arrete pas le programme.
+Cliquez sur le bouton "Quitter" en haut a droite de la page. Si vous fermez
+simplement l'onglet, le programme s'arrete tout seul au bout de 5 minutes.
 
 6. Desinstaller
 ---------------
-Fermez la fenetre noire, puis supprimez Cockpit.exe et config.json. Rien d'autre
+Arretez Cockpit (bouton "Quitter"), puis supprimez Cockpit.exe et config.json. Rien d'autre
 n'est installe sur votre ordinateur.
 
 Sans l'exe : double-cliquez sur Lancer-Cockpit.bat (a placer dans le dossier de

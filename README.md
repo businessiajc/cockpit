@@ -13,7 +13,7 @@ Depuis les sources (Python via `uv`) :
 uv run python -I server.py
 ```
 
-Ouvre `http://127.0.0.1:8780/` (ports suivants si occupe). Arret : Ctrl+C ou fermeture de la fenetre.
+Ouvre `http://127.0.0.1:8780/` (ports suivants si occupe). Arret : bouton « Quitter » dans la page, ou Ctrl+C / fermeture de la fenetre si lance depuis une console. L'exe (construit sans fenetre) s'arrete aussi seul 5 minutes apres la fermeture de la page.
 Options : `--port`, `--sessions <dossier des JSONL>`, `--root <dossier suivi>`, `--config <config.json>`, `--profil <dossier>`, `--no-open`.
 Tests : `uv run python -I test_cockpit.py`.
 
@@ -47,7 +47,7 @@ Un dossier `profil_prive` a cote du programme (ou `--profil <dossier>`) est char
 
 ## Construction de l'exe
 
-`uv run python -I make_icon.py cockpit.ico`, puis `uv run --with pyinstaller pyinstaller --onefile --console --name Cockpit --icon <chemin absolu>\cockpit.ico --add-data <chemin absolu>\index.html;. server.py`. Version utilisee : PyInstaller 6.22.3. `profil_prive` n'est pas embarque. Voie normale de publication : `.github/workflows/build-exe.yml` (construction sur Windows propre a la publication d'une etiquette `v*`, avec SHA-256 joint).
+`uv run python -I make_icon.py cockpit.ico`, puis `uv run --with pyinstaller pyinstaller --onefile --noconsole --name Cockpit --icon <chemin absolu>\cockpit.ico --add-data <chemin absolu>\index.html;. server.py`. Version utilisee : PyInstaller 6.22.3. `profil_prive` n'est pas embarque. Voie normale de publication : `.github/workflows/build-exe.yml` (construction sur Windows propre a la publication d'une etiquette `v*`, avec SHA-256 joint).
 
 ## Verifie (2026-11-08)
 

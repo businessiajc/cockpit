@@ -1170,6 +1170,9 @@ def make_handler(live, ctx, index_path):
                 if u.path in ("/", "/index.html"):
                     with open(index_path, "rb") as f:
                         return self._send(200, f.read(), "text/html; charset=utf-8")
+                if u.path == "/api/ping":
+                    ctx["last_seen"] = time.time()
+                    return self._send(200, {"ok": True})
                 if u.path == "/api/config":
                     return self._send(200, {"sessions": live.folder, "root": root,
                                             "name": os.path.basename(root) if root else "",
@@ -1208,12 +1211,17 @@ def make_handler(live, ctx, index_path):
             """Seule ecriture du programme : memoriser le dossier choisi dans config.json."""
             if not self._host_ok():
                 return self._send(403, {"error": "hote refuse"})
-            if urlparse(self.path).path != "/api/setup":
+            path = urlparse(self.path).path
+            if path not in ("/api/setup", "/api/quit"):
                 return self._send(404, {"error": "inconnu"})
             origin = self.headers.get("Origin") or ""
             host = (self.headers.get("Host") or "").lower()
             if origin.lower() != "http://" + host:       # refuse les requetes venues d'une autre page
                 return self._send(403, {"error": "origine refusee"})
+            if path == "/api/quit":
+                self._send(200, {"ok": True})
+                threading.Thread(target=self.server.shutdown, daemon=True).start()
+                return
             if not (self.headers.get("Content-Type") or "").lower().startswith("application/json"):
                 return self._send(400, {"error": "format attendu : JSON"})
             try:
@@ -1240,7 +1248,7 @@ def make_handler(live, ctx, index_path):
 
 def make_server(port, sessions, root, config_path=None, detector=None):
     live = LiveState(sessions, detector)
-    ctx = {"root": root, "config_path": config_path}
+    ctx = {"root": root, "config_path": config_path, "last_seen": time.time()}
     handler = make_handler(live, ctx, os.path.join(RES_DIR, "index.html"))
     srv = ThreadingHTTPServer((HOST, port), handler)
     srv.ctx = ctx
@@ -1280,7 +1288,14 @@ def main(argv=None):
     ap.add_argument("--config", default=CONFIG_PATH, help="fichier config.json (defaut : a cote du programme)")
     ap.add_argument("--profil", default=None, help="dossier d'un profil local (profil.json) ; defaut : profil_prive a cote du programme")
     ap.add_argument("--no-open", action="store_true", help="n'ouvre pas le navigateur")
+    ap.add_argument("--idle-quit", type=int, default=None,
+                    help="arret automatique (secondes) quand plus aucune page ne repond ; defaut : 300 pour l'exe sans fenetre, 0 sinon")
     a = ap.parse_args(argv)
+    if sys.stdout is None or sys.stderr is None:      # exe sans fenetre : pas de console
+        sink = open(os.devnull, "w")
+        sys.stdout = sys.stdout or sink
+        sys.stderr = sys.stderr or sink
+    idle = a.idle_quit if a.idle_quit is not None else (300 if getattr(sys, "frozen", False) else 0)
     prof = a.profil or next((d for d in (os.path.join(APP_DIR, "profil_prive"), os.path.join(HERE, "profil_prive"))
                              if os.path.isfile(os.path.join(d, "profil.json"))), None)
     if load_profile(prof):
@@ -1305,12 +1320,20 @@ def main(argv=None):
         print("Impossible de demarrer : aucun port libre.")
         sys.exit(1)
     url = "http://%s:%d/" % (HOST, srv.server_address[1])
-    print("Cockpit tourne : fermez cette fenetre pour arreter.")
+    print("Cockpit tourne. Arret : bouton Quitter dans la page, ou fermeture de cette fenetre." if idle <= 0 else "Cockpit tourne (sans fenetre). Arret : bouton Quitter dans la page.")
     print("Adresse :", url, "(Ctrl+C pour arreter)")
     print("Dossier suivi :", root or "(a choisir dans la page)")
     print("Sessions Claude Code :", sessions or "(aucune trouvee pour l'instant)", flush=True)
     if not a.no_open:
         open_browser(url)
+    if idle > 0:
+        def watchdog():
+            while True:
+                time.sleep(5)
+                if time.time() - srv.ctx["last_seen"] > idle:
+                    srv.shutdown()
+                    return
+        threading.Thread(target=watchdog, daemon=True).start()
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

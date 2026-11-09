@@ -23,6 +23,8 @@ nav button:focus-visible,.btn:focus-visible,button:focus-visible{outline:3px sol
 #conn{margin-left:auto;font-size:14px;color:var(--muted);display:flex;align-items:center;gap:8px}
 #conn i{width:10px;height:10px;border-radius:50%;background:var(--ok);display:inline-block}
 #conn.off i{background:#c0392b}
+#quit{margin-left:14px;padding:6px 12px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--muted);font-size:14px;cursor:pointer}
+#quit:hover{color:var(--text);border-color:var(--muted)}
 main{flex:1;min-height:0;position:relative}
 section.tab{position:absolute;inset:0;display:none;overflow:auto;padding:28px}
 section.tab.on{display:block}
@@ -156,6 +158,7 @@ section.tab.on{display:block}
     <button id="t-brain" data-tab="brain"></button>
   </nav>
   <div id="conn"><i></i><span>Connexion...</span></div>
+  <button id="quit" type="button" title="Arrêter Cockpit (le programme se ferme)">Quitter</button>
 </header>
 
 <div id="welcome" style="display:none;position:fixed;inset:0;z-index:50;background:var(--bg);align-items:center;justify-content:center;padding:20px">
@@ -991,6 +994,14 @@ async function boot() {
 }
 boot();
 
+/* Signal de vie (meme onglet cache) : sans lui, le programme sans fenetre s'arrete tout seul. */
+const ping = () => fetch("/api/ping", { cache: "no-store" }).catch(() => {});
+ping(); setInterval(ping, 20000);
+$("#quit").addEventListener("click", async () => {
+  if (!confirm("Arrêter Cockpit ? Le programme se ferme ; relancez Cockpit.exe pour le rouvrir.")) return;
+  try { await fetch("/api/quit", { method: "POST" }); } catch (e) {}
+  document.body.innerHTML = '<div style="font:18px system-ui;padding:40px;text-align:center">Cockpit est arrêté. Vous pouvez fermer cet onglet.</div>';
+});
 setInterval(() => { pollLive(); if (tab === "agents") loadAgents(); }, 2000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) { pollLive(); if (tab === "agents") loadAgents(); } });
 </script>
