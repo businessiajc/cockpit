@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Où Claude Code garde l'historique de vos sessions sous Windows - Cockpit</title>
+<meta name="description" content="Où se trouvent les fichiers de session de Claude Code sous Windows, comment les ouvrir sans casser quoi que ce soit, et ce qu'on peut en lire. Guide pratique, limites comprises.">
+<link rel="canonical" href="https://businessiajc.github.io/cockpit/claude-code-historique-sessions.html">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b5d56'/%3E%3Cpath d='M16 46V30a16 16 0 0 1 32 0v16' fill='none' stroke='%235fd8e8' stroke-width='5' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='34' r='5' fill='%23fff'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#070d1f">
+<meta property="og:type" content="article">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:site_name" content="Cockpit">
+<meta property="og:title" content="Où Claude Code garde l'historique de vos sessions sous Windows - Cockpit">
+<meta property="og:description" content="Guide pratique : où sont les fichiers de session de Claude Code et comment les lire.">
+<meta property="og:url" content="https://businessiajc.github.io/cockpit/claude-code-historique-sessions.html">
+<meta name="twitter:card" content="summary">
+<link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+<a class="skip" href="#contenu">Aller au contenu</a>
+<header class="top"><div class="wrap">
+<a class="brand" href="index.html"><svg width="30" height="30" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#0b5d56"/><path d="M16 46V30a16 16 0 0 1 32 0v16" fill="none" stroke="#5fd8e8" stroke-width="5" stroke-linecap="round"/><circle cx="32" cy="34" r="5" fill="#fff"/></svg><span>Cockpit</span></a>
+<nav class="nav" aria-label="Navigation principale"><a href="index.html#fonctions">Fonctions</a><a href="index.html#installer">Installer</a><a href="index.html#vie-privee">Vie privée</a><a href="index.html#limites">Limites</a><a href="index.html#faq">FAQ</a><a href="mentions.html" aria-current="page">Mentions</a></nav>
+</div></header>
+<main id="contenu"><div class="wrap"><article class="prose">
+<h1>Où Claude Code garde l'historique de vos sessions sous Windows</h1>
+<p>Mis à jour le 11 novembre 2026. Ce guide décrit ce qu'on observe sur un poste Windows 11 ; il n'est pas une documentation officielle d'Anthropic.</p>
+<p>Quand Claude Code travaille, le terminal défile vite. Une trace de chaque session reste pourtant sur votre disque. La retrouver permet de relire ce qui s'est passé, sans rien relancer.</p>
+<h2>1. Où sont les fichiers</h2>
+<p>Sous Windows, le dossier se trouve dans votre profil utilisateur : <code>%USERPROFILE%\.claude\projects</code>. Collez ce chemin dans la barre d'adresse de l'Explorateur de fichiers. Chaque projet sur lequel vous avez lancé Claude Code y a un sous-dossier, dont le nom reprend le chemin du projet avec des tirets à la place des séparateurs.</p>
+<h2>2. Ce que contient chaque fichier</h2>
+<p>Chaque session est un fichier <code>.jsonl</code> : une ligne de texte JSON par événement (message, appel d'outil, résultat). Ce sont des fichiers texte, ouvrables avec le Bloc-notes. Le plus récent par date de modification correspond à la session la plus récente.</p>
+<h2>3. Précautions avant d'ouvrir</h2>
+<ul>
+<li><strong>Lisez, ne modifiez pas.</strong> Ouvrez une copie si vous voulez expérimenter.</li>
+<li><strong>Ne les partagez pas telles quelles.</strong> Ces fichiers peuvent contenir des chemins personnels, des extraits de code, et parfois des secrets que l'agent a lus (clés, mots de passe d'un fichier de configuration). Relisez avant tout envoi.</li>
+<li><strong>Le format n'est pas documenté officiellement</strong> : il peut changer d'une version à l'autre.</li>
+</ul>
+<h2>4. Les lire sans parcourir des milliers de lignes</h2>
+<p>Un fichier de session fait vite plusieurs mégaoctets, et les lignes sont illisibles pour un débutant. Deux approches :</p>
+<ul>
+<li>Un éditeur avec recherche (Bloc-notes, VS Code) : cherchez un mot de votre demande pour retrouver l'endroit qui vous intéresse.</li>
+<li>Un outil qui traduit le fichier en phrases simples. <a href="index.html">Cockpit</a>, que nous développons, fait cela en local : il lit ce dossier, affiche l'état de la session en français et ne modifie rien. Il est gratuit pendant la phase de lancement, mais il est jeune : testé sur un seul poste Windows 11, et son exécutable n'est pas signé (Windows peut donc afficher un avertissement).</li>
+</ul>
+<h2>Limites de ce guide</h2>
+<p>Je n'ai vérifié ces chemins que sur un poste Windows 11. Sous macOS ou Linux, le dossier de base est différent et je ne l'ai pas contrôlé ici.</p>
+<p><a href="index.html">Retour à l'accueil de Cockpit</a></p>
+</article></div></main>
+<footer class="foot"><div class="wrap">
+<p>Cockpit n'est ni affilié, ni approuvé par Anthropic. Claude et Claude Code sont des marques d'Anthropic.</p>
+<p>Édité par Jarod Capella, Foix (09), France. <a href="mentions.html">Mentions légales</a> · <a href="mailto:businessia.jc@gmail.com">Contact</a> · Aucun cookie, aucun suivi.</p>
+</div></footer>
+</body>
+</html>
