@@ -913,5 +913,23 @@ class TestSetupScreen(unittest.TestCase):
         self.assertIsNone(json.loads(b)["session"])
 
 
+class TestMissions(unittest.TestCase):
+    def test_absent(self):
+        r = server.load_missions(os.path.join(tempfile.gettempdir(), "absent_missions_xyz.md"))
+        self.assertFalse(r["found"])
+        self.assertEqual(r["groups"], [])
+
+    def test_groupes_cases_et_detail(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "MISSIONS.md")
+            with open(p, "w", encoding="utf-8") as f:
+                f.write("# Titre\n## Aujourd hui\n- [ ] Payer la facture\n  Detail une\n  Detail deux\n- [x] Appeler\n## Plus tard\n- [ ] Autre\n")
+            r = server.load_missions(p)
+        self.assertEqual([g["title"] for g in r["groups"]], ["Aujourd hui", "Plus tard"])
+        a = r["groups"][0]["items"]
+        self.assertEqual([i["done"] for i in a], [False, True])
+        self.assertEqual(a[0]["detail"], ["Detail une", "Detail deux"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

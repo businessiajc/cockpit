@@ -26,10 +26,11 @@ Aucun chemin n'est ecrit en dur. Priorite : option en ligne de commande > `confi
 - Seule ecriture du programme : `POST /api/setup` (en-tetes Host et Origin controles, JSON, dossier existant, pas un disque entier).
 - `AGENTS.json` est cherche a la racine choisie ; s'il manque, la page explique comment le creer et comment nommer ses agents. Un modele est fourni : `AGENTS.exemple.json`.
 
-## Les trois onglets
+## Les quatre onglets
 
 - **Aujourd'hui** : etat (« travaille » si le fichier de session a bouge il y a moins de 3 min, sinon « En pause depuis X min »), 5 compteurs, bandeau orange en cas de probleme recent, plan du moment (derniere liste `update_plan`) et chronologie en phrases simples. Rafraichi toutes les 2 s, en pause si l'onglet est cache.
 - **Mes agents** : une carte par agent (registre `AGENTS.json` + sous-agents detectes dans la session, sans doublon). Pastilles En cours / Termine / Planifie / Echec / En pause. Clic : fenetre « plan bleu ».
+- **Missions a faire** : liste lue dans `MISSIONS.md` a la racine du dossier suivi (`## Titre` = groupe, `- [ ]` a faire, `- [x]` fait, lignes decalees = detail). Cockpit ne fait que la lire : c'est l'agent ou vous qui tenez le fichier.
 - **Cerveau 3D** : carte mentale en canvas (projection en perspective ecrite a la main). Les menus sont deduits des dossiers de premier niveau du dossier suivi (8 plus gros + « Autres »), avec couleurs attribuees automatiquement, noms lisibles (underscores et tirets remplaces, majuscule), types par extension. Clic gauche maintenu : deplacer ; clic molette maintenu : tourner ; molette : zoom ; double-clic ou « Voir le schema » : fenetre plan bleu. Arborescence a gauche (recherche), details a droite, filtres, 300 noeuds visibles au plus.
 
 Trois niveaux de description par fichier : resume (« Ce que ca fait »), « Comment ca marche » (fonctions et classes via `ast`, imports, titres Markdown), « Voir le code complet » (moins de 400 Ko, coloration simple, bouton Copier). Descriptions generiques pour les fichiers courants (README.md, LICENSE, requirements.txt, package.json, .gitignore, AGENTS.json, CLAUDE.md...) ; sinon docstring ou premiere ligne utile ; sinon « Pas encore de description ».

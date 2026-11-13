@@ -278,6 +278,42 @@ STATUS_LABELS = {"running": "En cours", "done": "Terminé", "planned": "Planifi�
                  "failed": "Échec", "paused": "En pause", "unknown": "État inconnu"}
 
 
+def load_missions(path):
+    """Lit MISSIONS.md a la racine du dossier suivi : titres « ## » = groupes, lignes « - [ ] » / « - [x] » = missions.
+    Les lignes indentees sous une mission sont son detail. Lecture seule."""
+    res = {"found": False, "groups": [], "path": path, "error": None}
+    if not os.path.isfile(path):
+        return res
+    res["found"] = True
+    try:
+        with open(path, "r", encoding="utf-8-sig") as f:
+            lines = f.read().splitlines()[:600]
+    except OSError as e:
+        res["error"] = "Fichier illisible : " + clean(str(e), 100)
+        return res
+    group = None
+    last = None
+    for ln in lines:
+        m = re.match(r"^##\s+(.+?)\s*$", ln)
+        if m:
+            group = {"title": clean(m.group(1), 80), "items": []}
+            res["groups"].append(group)
+            last = None
+            continue
+        m = re.match(r"^\s*[-*]\s+\[( |x|X)\]\s+(.+?)\s*$", ln)
+        if m:
+            if group is None:
+                group = {"title": "Missions", "items": []}
+                res["groups"].append(group)
+            last = {"done": m.group(1).lower() == "x", "text": clean(m.group(2), 300), "detail": []}
+            group["items"].append(last)
+            continue
+        if last is not None and ln.startswith(("  ", "	")) and ln.strip():
+            if len(last["detail"]) < 12:
+                last["detail"].append(clean(ln.strip(), 300))
+    return res
+
+
 def load_agents_file(path):
     res = {"found": False, "agents": [], "error": None, "path": path}
     if not os.path.isfile(path):
@@ -1181,7 +1217,7 @@ def make_handler(live, ctx, index_path):
                     since = int(q.get("since", ["0"])[0])
                     epoch = int(q.get("epoch", ["0"])[0])
                     return self._send(200, live.update(since, epoch))
-                if root is None and u.path in ("/api/code", "/api/tech", "/api/agents", "/api/tree", "/api/file"):
+                if root is None and u.path in ("/api/code", "/api/tech", "/api/agents", "/api/missions", "/api/tree", "/api/file"):
                     return self._send(409, {"error": "dossier a suivre non choisi", "needs_root": True})
                 if u.path in ("/api/code", "/api/tech"):
                     fn = read_code if u.path == "/api/code" else tech_info
@@ -1194,6 +1230,8 @@ def make_handler(live, ctx, index_path):
                     cards = merge_agents(reg["agents"], live.detected(), datetime.now())
                     return self._send(200, {"found": reg["found"], "error": reg["error"],
                                             "path": reg["path"], "cards": cards})
+                if u.path == "/api/missions":
+                    return self._send(200, load_missions(os.path.join(root, "MISSIONS.md")))
                 if u.path == "/api/tree":
                     return self._send(200, build_tree(root))
                 if u.path == "/api/file":

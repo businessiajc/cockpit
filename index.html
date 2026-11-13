@@ -147,6 +147,7 @@ section.tab.on{display:block}
 .code{padding:10px 14px!important;color:#fff;white-space:pre;tab-size:4;flex:1 0 auto}
 .tk{color:#9cc4ff;font-weight:700}.ts{color:#ffd9a0}.tc{color:#a9bbdd;font-style:italic}
 @media (max-width:1000px){#brain.on{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) 38vh}#brain .side:not(.right){display:none}.side.right{border-left:0;border-top:1px solid var(--line)}}
+.ms{margin:6px 0;padding:8px 0;border-bottom:1px solid var(--line)}.ms summary{cursor:pointer;display:flex;gap:10px;align-items:flex-start;font-size:16px}.ms.done summary span:last-child{text-decoration:line-through;opacity:.6}.msbox{flex:0 0 22px;height:22px;border:2px solid var(--accent);border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;line-height:1}.msbox.ok{background:var(--accent);color:var(--accent-text)}
 </style>
 </head>
 <body>
@@ -155,6 +156,7 @@ section.tab.on{display:block}
   <nav>
     <button id="t-today" class="on" data-tab="today"></button>
     <button id="t-agents" data-tab="agents"></button>
+    <button id="t-missions" data-tab="missions"></button>
     <button id="t-brain" data-tab="brain"></button>
   </nav>
   <div id="conn"><i></i><span>Connexion...</span></div>
@@ -180,6 +182,7 @@ section.tab.on{display:block}
     <div class="card"><h2>Ce qui vient de se passer</h2><p class="sub">Les dernières actions, en phrases simples. Le plus récent en haut.</p><div id="tl"></div></div>
   </div></section>
   <section id="agents" class="tab"><div id="agbox"></div></section>
+  <section id="missions" class="tab"><div class="wrap" id="msbox"></div></section>
   <section id="brain" class="tab">
     <aside class="side"><h2>Arborescence</h2><input type="search" id="q" placeholder="Chercher un fichier ou un dossier" aria-label="Chercher"><div id="tree"></div></aside>
     <div id="stage"><canvas id="bg"></canvas><canvas id="cv"></canvas>
@@ -253,13 +256,14 @@ const iconFor = n => n.type === "dir" || n.type === "zone" ? "folder" : (EXT_ICO
 
 /* ---------- onglets ---------- */
 $("#logo").append(icon("logo", 30), "Cockpit");
-const TABS = { today: ["Aujourd'hui", "today"], agents: ["Mes agents", "agent"], brain: ["Cerveau 3D", "cube"] };
+const TABS = { today: ["Aujourd'hui", "today"], agents: ["Mes agents", "agent"], missions: ["Missions à faire", "file"], brain: ["Cerveau 3D", "cube"] };
 for (const k in TABS) $("#t-" + k).append(icon(TABS[k][1], 24), TABS[k][0]);
 let tab = "today";
 function showTab(t) {
   tab = t;
   for (const k in TABS) { $("#t-" + k).classList.toggle("on", k === t); $("#" + k).classList.toggle("on", k === t); }
   if (t === "agents") loadAgents();
+  if (t === "missions") loadMissions();
   if (t === "brain") brainShow();
 }
 document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
@@ -332,6 +336,25 @@ $("#plancard").addEventListener("keydown", e => { if (e.key === "Enter" || e.key
 
 /* ---------- Mes agents ---------- */
 let agentCards = [], lastAg = "";
+let lastMs = "";
+async function loadMissions() {
+  if (document.hidden) return;
+  let j; try { j = await api("/api/missions"); } catch (e) { return; }
+  const sig = JSON.stringify(j); if (sig === lastMs) return; lastMs = sig;
+  const box = $("#msbox"); box.replaceChildren();
+  if (!j.found) { box.append(h("div", { class: "card help" }, h("h2", { text: "Aucune liste de missions trouvée" }), h("p", { class: "sub" }, "Créez le fichier ", h("code", { text: "MISSIONS.md" }), " à la racine du dossier suivi. Un titre ", h("code", { text: "## Aujourd'hui" }), " crée un groupe, une ligne ", h("code", { text: "- [ ] Faire ceci" }), " ajoute une mission à faire, ", h("code", { text: "- [x]" }), " une mission faite. Les lignes décalées de deux espaces en dessous sont le détail de la mission. Votre agent peut tenir ce fichier à jour : Cockpit ne fait que le lire."))); return; }
+  if (j.error) box.append(h("div", { class: "card help" }, h("p", { text: j.error })));
+  const todo = j.groups.reduce((n, g) => n + g.items.filter(i => !i.done).length, 0);
+  box.append(h("div", { class: "card" }, h("h1", { text: todo ? todo + " mission" + (todo > 1 ? "s" : "") + " à faire" : "Rien à faire pour le moment" }), h("p", { class: "sub", text: "Liste tenue par votre agent dans MISSIONS.md. Cockpit la lit, il ne la modifie pas." })));
+  for (const g of j.groups) {
+    const card = h("div", { class: "card" }, h("h2", { text: g.title }));
+    if (!g.items.length) card.append(h("p", { class: "sub", text: "Rien dans ce groupe." }));
+    for (const it of g.items) card.append(h("details", { class: "ms" + (it.done ? " done" : ""), open: !it.done && it.detail.length ? "" : null },
+      h("summary", {}, h("span", { class: "msbox" + (it.done ? " ok" : "") , text: it.done ? "✓" : "" }), h("span", { text: it.text })),
+      it.detail.length ? h("div", { class: "sub" }, ...it.detail.map(d => h("p", { text: d }))) : null));
+    box.append(card);
+  }
+}
 async function loadAgents() {
   if (document.hidden) return;
   let j; try { j = await api("/api/agents"); } catch (e) { return; }
@@ -1002,8 +1025,8 @@ $("#quit").addEventListener("click", async () => {
   try { await fetch("/api/quit", { method: "POST" }); } catch (e) {}
   document.body.innerHTML = '<div style="font:18px system-ui;padding:40px;text-align:center">Cockpit est arrêté. Vous pouvez fermer cet onglet.</div>';
 });
-setInterval(() => { pollLive(); if (tab === "agents") loadAgents(); }, 2000);
-document.addEventListener("visibilitychange", () => { if (!document.hidden) { pollLive(); if (tab === "agents") loadAgents(); } });
+setInterval(() => { pollLive(); if (tab === "agents") loadAgents(); if (tab === "missions") loadMissions(); }, 2000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) { pollLive(); if (tab === "agents") loadAgents(); if (tab === "missions") loadMissions(); } });
 </script>
 </body>
 </html>
