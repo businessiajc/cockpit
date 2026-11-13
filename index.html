@@ -147,7 +147,7 @@ section.tab.on{display:block}
 .code{padding:10px 14px!important;color:#fff;white-space:pre;tab-size:4;flex:1 0 auto}
 .tk{color:#9cc4ff;font-weight:700}.ts{color:#ffd9a0}.tc{color:#a9bbdd;font-style:italic}
 @media (max-width:1000px){#brain.on{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) 38vh}#brain .side:not(.right){display:none}.side.right{border-left:0;border-top:1px solid var(--line)}}
-.ms{margin:6px 0;padding:8px 0;border-bottom:1px solid var(--line)}.ms summary{cursor:pointer;display:flex;gap:10px;align-items:flex-start;font-size:16px}.ms.done summary span:last-child{text-decoration:line-through;opacity:.6}.msbox{flex:0 0 22px;height:22px;border:2px solid var(--accent);border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;line-height:1}.msbox.ok{background:var(--accent);color:var(--accent-text)}
+.ms{margin:6px 0;padding:8px 0;border-bottom:1px solid var(--line)}.ms summary{cursor:pointer;display:flex;gap:10px;align-items:flex-start;font-size:16px}.ms.done summary span:last-child{text-decoration:line-through;opacity:.6}.msbox{flex:0 0 22px;height:22px;border:2px solid var(--accent);border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;line-height:1}.msbox{background:transparent;cursor:pointer;padding:0}.msbox:hover{background:var(--accent)}
 </style>
 </head>
 <body>
@@ -337,20 +337,27 @@ $("#plancard").addEventListener("keydown", e => { if (e.key === "Enter" || e.key
 /* ---------- Mes agents ---------- */
 let agentCards = [], lastAg = "";
 let lastMs = "";
+async function validateMission(id) {
+  try {
+    const r = await fetch("/api/missions/done", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+    if (!r.ok) throw new Error(r.status);
+  } catch (e) { alert("La mission n'a pas pu être validée (" + e.message + "). Réessayez."); }
+  lastMs = ""; loadMissions();
+}
 async function loadMissions() {
   if (document.hidden) return;
   let j; try { j = await api("/api/missions"); } catch (e) { return; }
   const sig = JSON.stringify(j); if (sig === lastMs) return; lastMs = sig;
   const box = $("#msbox"); box.replaceChildren();
-  if (!j.found) { box.append(h("div", { class: "card help" }, h("h2", { text: "Aucune liste de missions trouvée" }), h("p", { class: "sub" }, "Créez le fichier ", h("code", { text: "MISSIONS.md" }), " à la racine du dossier suivi. Un titre ", h("code", { text: "## Aujourd'hui" }), " crée un groupe, une ligne ", h("code", { text: "- [ ] Faire ceci" }), " ajoute une mission à faire, ", h("code", { text: "- [x]" }), " une mission faite. Les lignes décalées de deux espaces en dessous sont le détail de la mission. Votre agent peut tenir ce fichier à jour : Cockpit ne fait que le lire."))); return; }
+  if (!j.found) { box.append(h("div", { class: "card help" }, h("h2", { text: "Aucune liste de missions trouvée" }), h("p", { class: "sub" }, "Créez le fichier ", h("code", { text: "MISSIONS.md" }), " à la racine du dossier suivi. Un titre ", h("code", { text: "## Aujourd'hui" }), " crée un groupe, une ligne ", h("code", { text: "- [ ] Faire ceci" }), " ajoute une mission à faire, ", h("code", { text: "- [x]" }), " une mission faite. Les lignes décalées de deux espaces en dessous sont le détail de la mission. Votre agent peut tenir ce fichier à jour et en ajouter à tout moment ; quand vous cochez une case dans Cockpit, la mission est marquée faite dans ce fichier."))); return; }
   if (j.error) box.append(h("div", { class: "card help" }, h("p", { text: j.error })));
   const todo = j.groups.reduce((n, g) => n + g.items.filter(i => !i.done).length, 0);
-  box.append(h("div", { class: "card" }, h("h1", { text: todo ? todo + " mission" + (todo > 1 ? "s" : "") + " à faire" : "Rien à faire pour le moment" }), h("p", { class: "sub", text: "Liste tenue par votre agent dans MISSIONS.md. Cockpit la lit, il ne la modifie pas." })));
+  box.append(h("div", { class: "card" }, h("h1", { text: todo ? todo + " mission" + (todo > 1 ? "s" : "") + " à faire" : "Rien à faire pour le moment" }), h("p", { class: "sub", text: "Cochez la case quand c'est fait : la mission disparaît et votre agent en est informé (il le lit dans MISSIONS.md). Il peut aussi en ajouter tout seul." })));
   for (const g of j.groups) {
     const card = h("div", { class: "card" }, h("h2", { text: g.title }));
     if (!g.items.length) card.append(h("p", { class: "sub", text: "Rien dans ce groupe." }));
     for (const it of g.items) card.append(h("details", { class: "ms" + (it.done ? " done" : ""), open: !it.done && it.detail.length ? "" : null },
-      h("summary", {}, h("span", { class: "msbox" + (it.done ? " ok" : "") , text: it.done ? "✓" : "" }), h("span", { text: it.text })),
+      h("summary", {}, h("button", { class: "msbox", type: "button", title: "Marquer comme fait", "aria-label": "Marquer comme fait : " + it.text, onclick: ev => { ev.preventDefault(); ev.stopPropagation(); validateMission(it.id); } }), h("span", { text: it.text })),
       it.detail.length ? h("div", { class: "sub" }, ...it.detail.map(d => h("p", { text: d }))) : null));
     box.append(card);
   }

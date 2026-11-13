@@ -919,7 +919,7 @@ class TestMissions(unittest.TestCase):
         self.assertFalse(r["found"])
         self.assertEqual(r["groups"], [])
 
-    def test_groupes_cases_et_detail(self):
+    def test_groupes_detail_et_faites_masquees(self):
         with tempfile.TemporaryDirectory() as d:
             p = os.path.join(d, "MISSIONS.md")
             with open(p, "w", encoding="utf-8") as f:
@@ -927,8 +927,48 @@ class TestMissions(unittest.TestCase):
             r = server.load_missions(p)
         self.assertEqual([g["title"] for g in r["groups"]], ["Aujourd hui", "Plus tard"])
         a = r["groups"][0]["items"]
-        self.assertEqual([i["done"] for i in a], [False, True])
+        self.assertEqual([i["text"] for i in a], ["Payer la facture"])      # la mission faite n'est plus affichee
         self.assertEqual(a[0]["detail"], ["Detail une", "Detail deux"])
+
+    def test_cocher_ecrit_le_fichier_et_le_journal(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "MISSIONS.md")
+            with open(p, "w", encoding="utf-8", newline="") as f:
+                f.write("## G\r\n- [ ] Une\r\n  detail\r\n- [ ] Deux\r\n")
+            mid = server.load_missions(p)["groups"][0]["items"][1]["id"]
+            self.assertEqual(server.mark_mission_done(d, mid), "Deux")
+            with open(p, "r", encoding="utf-8", newline="") as f:
+                txt = f.read()
+            self.assertIn("- [ ] Une\r\n  detail\r\n- [x] Deux\r\n", txt)       # fins de ligne conservees
+            self.assertEqual([i["text"] for i in server.load_missions(p)["groups"][0]["items"]], ["Une"])
+            with open(os.path.join(d, "MISSIONS_FAITES.jsonl"), encoding="utf-8") as f:
+                self.assertIn("Deux", f.read())
+            self.assertIsNone(server.mark_mission_done(d, mid))                 # deja faite
+            self.assertIsNone(server.mark_mission_done(d, "../../etc"))         # id invalide
+
+    def test_post_valider_exige_origine_et_json(self):
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, "MISSIONS.md"), "w", encoding="utf-8") as f:
+                f.write("## G\n- [ ] Ma mission\n")
+            srv = server.make_server(0, d, d)
+            port = srv.server_address[1]
+            threading.Thread(target=srv.serve_forever, daemon=True).start()
+            try:
+                mid = server.load_missions(os.path.join(d, "MISSIONS.md"))["groups"][0]["items"][0]["id"]
+                body = json.dumps({"id": mid})
+                def post(origin):
+                    c = http.client.HTTPConnection("127.0.0.1", port)
+                    h = {"Content-Type": "application/json", "Host": "127.0.0.1:%d" % port}
+                    if origin:
+                        h["Origin"] = origin
+                    c.request("POST", "/api/missions/done", body, h)
+                    return c.getresponse().status
+                self.assertEqual(post(None), 403)
+                self.assertEqual(post("http://evil.example"), 403)
+                self.assertEqual(post("http://127.0.0.1:%d" % port), 200)
+                self.assertEqual(post("http://127.0.0.1:%d" % port), 404)
+            finally:
+                srv.shutdown()
 
 
 if __name__ == "__main__":

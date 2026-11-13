@@ -278,6 +278,36 @@ STATUS_LABELS = {"running": "En cours", "done": "Terminé", "planned": "Planifi�
                  "failed": "Échec", "paused": "En pause", "unknown": "État inconnu"}
 
 
+def mission_id(text):
+    """Identifiant court et stable d'une mission, calcule sur son texte."""
+    import hashlib
+    return hashlib.sha1(text.strip().encode("utf-8")).hexdigest()[:10]
+
+
+def mark_mission_done(root, mid):
+    """Coche « - [x] » la premiere mission non faite dont l'id correspond, dans MISSIONS.md du dossier suivi,
+    puis note l'evenement dans MISSIONS_FAITES.jsonl (l'agent le lit). Retourne le texte de la mission ou None."""
+    path = os.path.join(root, "MISSIONS.md")
+    if not os.path.isfile(path) or not isinstance(mid, str) or not re.fullmatch(r"[0-9a-f]{10}", mid):
+        return None
+    with open(path, "r", encoding="utf-8-sig", newline="") as f:
+        raw = f.read()
+    lines = raw.split("\n")
+    for i, ln in enumerate(lines):
+        m = re.match(r"^(\s*[-*]\s+)\[ \](\s+)(.+?)(\r?)$", ln)
+        if m and mission_id(m.group(3)) == mid:
+            lines[i] = m.group(1) + "[x]" + m.group(2) + m.group(3) + m.group(4)
+            tmp = path + ".tmp"
+            with open(tmp, "w", encoding="utf-8", newline="") as f:
+                f.write("\n".join(lines))
+            os.replace(tmp, path)
+            with open(os.path.join(root, "MISSIONS_FAITES.jsonl"), "a", encoding="utf-8") as f:
+                f.write(json.dumps({"date": datetime.now().isoformat(timespec="seconds"), "id": mid,
+                                    "mission": clean(m.group(3), 300)}, ensure_ascii=False) + "\n")
+            return m.group(3)
+    return None
+
+
 def load_missions(path):
     """Lit MISSIONS.md a la racine du dossier suivi : titres « ## » = groupes, lignes « - [ ] » / « - [x] » = missions.
     Les lignes indentees sous une mission sont son detail. Lecture seule."""
@@ -305,7 +335,10 @@ def load_missions(path):
             if group is None:
                 group = {"title": "Missions", "items": []}
                 res["groups"].append(group)
-            last = {"done": m.group(1).lower() == "x", "text": clean(m.group(2), 300), "detail": []}
+            if m.group(1).lower() == "x":      # mission validee : masquee dans la page (l'agent la voit dans le fichier)
+                last = None
+                continue
+            last = {"done": False, "id": mission_id(m.group(2)), "text": clean(m.group(2), 300), "detail": []}
             group["items"].append(last)
             continue
         if last is not None and ln.startswith(("  ", "	")) and ln.strip():
@@ -1246,11 +1279,11 @@ def make_handler(live, ctx, index_path):
         do_HEAD = do_GET
 
         def do_POST(self):
-            """Seule ecriture du programme : memoriser le dossier choisi dans config.json."""
+            """Ecritures du programme : memoriser le dossier choisi (config.json) et cocher une mission dans MISSIONS.md."""
             if not self._host_ok():
                 return self._send(403, {"error": "hote refuse"})
             path = urlparse(self.path).path
-            if path not in ("/api/setup", "/api/quit"):
+            if path not in ("/api/setup", "/api/quit", "/api/missions/done"):
                 return self._send(404, {"error": "inconnu"})
             origin = self.headers.get("Origin") or ""
             host = (self.headers.get("Host") or "").lower()
@@ -1260,6 +1293,26 @@ def make_handler(live, ctx, index_path):
                 self._send(200, {"ok": True})
                 threading.Thread(target=self.server.shutdown, daemon=True).start()
                 return
+            if path == "/api/missions/done":
+                if not (self.headers.get("Content-Type") or "").lower().startswith("application/json"):
+                    return self._send(400, {"error": "format attendu : JSON"})
+                if ctx["root"] is None:
+                    return self._send(409, {"error": "dossier a suivre non choisi"})
+                try:
+                    n = int(self.headers.get("Content-Length") or "0")
+                    if not 0 < n <= 512:
+                        raise ValueError
+                    data = json.loads(self.rfile.read(n).decode("utf-8"))
+                    mid = data.get("id") if isinstance(data, dict) else None
+                except (ValueError, UnicodeDecodeError):
+                    return self._send(400, {"error": "demande illisible"})
+                try:
+                    txt = mark_mission_done(ctx["root"], mid)
+                except OSError as e:
+                    return self._send(500, {"error": "ecriture impossible : " + clean(str(e), 100)})
+                if txt is None:
+                    return self._send(404, {"error": "mission introuvable ou deja faite"})
+                return self._send(200, {"ok": True})
             if not (self.headers.get("Content-Type") or "").lower().startswith("application/json"):
                 return self._send(400, {"error": "format attendu : JSON"})
             try:
