@@ -338,7 +338,9 @@ def load_missions(path):
             if m.group(1).lower() == "x":      # mission validee : masquee dans la page (l'agent la voit dans le fichier)
                 last = None
                 continue
-            last = {"done": False, "id": mission_id(m.group(2)), "text": clean(m.group(2), 300), "detail": []}
+            pm = re.match(r"^\[P([1-4])\]\s*(.*)$", m.group(2))     # priorite : [P1] tres urgent ... [P4] plus tard ; sans etiquette = 0
+            last = {"done": False, "id": mission_id(m.group(2)), "priority": int(pm.group(1)) if pm else 0,
+                    "text": clean(pm.group(2) if pm else m.group(2), 300), "detail": [], "group": group["title"]}
             group["items"].append(last)
             continue
         if last is not None and ln.startswith(("  ", "	")) and ln.strip():

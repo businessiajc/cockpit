@@ -352,12 +352,15 @@ async function loadMissions() {
   if (!j.found) { box.append(h("div", { class: "card help" }, h("h2", { text: "Aucune liste de missions trouvée" }), h("p", { class: "sub" }, "Créez le fichier ", h("code", { text: "MISSIONS.md" }), " à la racine du dossier suivi. Un titre ", h("code", { text: "## Aujourd'hui" }), " crée un groupe, une ligne ", h("code", { text: "- [ ] Faire ceci" }), " ajoute une mission à faire, ", h("code", { text: "- [x]" }), " une mission faite. Les lignes décalées de deux espaces en dessous sont le détail de la mission. Votre agent peut tenir ce fichier à jour et en ajouter à tout moment ; quand vous cochez une case dans Cockpit, la mission est marquée faite dans ce fichier."))); return; }
   if (j.error) box.append(h("div", { class: "card help" }, h("p", { text: j.error })));
   const todo = j.groups.reduce((n, g) => n + g.items.filter(i => !i.done).length, 0);
-  box.append(h("div", { class: "card" }, h("h1", { text: todo ? todo + " mission" + (todo > 1 ? "s" : "") + " à faire" : "Rien à faire pour le moment" }), h("p", { class: "sub", text: "Cochez la case quand c'est fait : la mission disparaît et votre agent en est informé (il le lit dans MISSIONS.md). Il peut aussi en ajouter tout seul." })));
-  for (const g of j.groups) {
-    const card = h("div", { class: "card" }, h("h2", { text: g.title }));
-    if (!g.items.length) card.append(h("p", { class: "sub", text: "Rien dans ce groupe." }));
-    for (const it of g.items) card.append(h("details", { class: "ms" + (it.done ? " done" : ""), open: !it.done && it.detail.length ? "" : null },
-      h("summary", {}, h("button", { class: "msbox", type: "button", title: "Marquer comme fait", "aria-label": "Marquer comme fait : " + it.text, onclick: ev => { ev.preventDefault(); ev.stopPropagation(); validateMission(it.id); } }), h("span", { text: it.text })),
+  box.append(h("div", { class: "card" }, h("h1", { text: todo ? todo + " mission" + (todo > 1 ? "s" : "") + " à faire" : "Rien à faire pour le moment" }), h("p", { class: "sub", text: "Cochez la case quand c'est fait : la mission disparaît et votre agent en est informé (il le lit dans MISSIONS.md). Il peut aussi en ajouter tout seul. Classées de la plus urgente à la moins urgente (étiquette [P1] à [P4] devant la mission dans MISSIONS.md)." })));
+  const LV = [[1, "🔴 Urgent"], [2, "🟠 Important"], [3, "🟡 Normal"], [4, "⚪ Plus tard"], [0, "Sans priorité"]];
+  const all = j.groups.flatMap(g => g.items);
+  for (const [p, label] of LV) {
+    const items = all.filter(i => (i.priority || 0) === p);
+    if (!items.length) continue;
+    const card = h("div", { class: "card" }, h("h2", { text: label + " (" + items.length + ")" }));
+    for (const it of items) card.append(h("details", { class: "ms" + (it.done ? " done" : ""), open: !it.done && it.detail.length ? "" : null },
+      h("summary", {}, h("button", { class: "msbox", type: "button", title: "Marquer comme fait", "aria-label": "Marquer comme fait : " + it.text, onclick: ev => { ev.preventDefault(); ev.stopPropagation(); validateMission(it.id); } }), h("span", { text: it.text }), h("span", { class: "sub", text: it.group ? " · " + it.group : "" })),
       it.detail.length ? h("div", { class: "sub" }, ...it.detail.map(d => h("p", { text: d }))) : null));
     box.append(card);
   }

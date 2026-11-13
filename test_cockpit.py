@@ -930,6 +930,15 @@ class TestMissions(unittest.TestCase):
         self.assertEqual([i["text"] for i in a], ["Payer la facture"])      # la mission faite n'est plus affichee
         self.assertEqual(a[0]["detail"], ["Detail une", "Detail deux"])
 
+    def test_priorites(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "MISSIONS.md")
+            with open(p, "w", encoding="utf-8") as f:
+                f.write("## G\n- [ ] [P1] Urgente\n- [ ] Sans etiquette\n- [ ] [P4] Tard\n")
+            it = server.load_missions(p)["groups"][0]["items"]
+        self.assertEqual([(i["text"], i["priority"]) for i in it], [("Urgente", 1), ("Sans etiquette", 0), ("Tard", 4)])
+        self.assertEqual(it[0]["group"], "G")
+
     def test_cocher_ecrit_le_fichier_et_le_journal(self):
         with tempfile.TemporaryDirectory() as d:
             p = os.path.join(d, "MISSIONS.md")
