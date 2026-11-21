@@ -358,10 +358,26 @@ async function loadMissions() {
   const vbtn = (v, label) => h("button", { class: "abtn", type: "button", text: label, "aria-pressed": view === v ? "true" : "false", style: view === v ? "font-weight:700;outline:2px solid currentColor" : "", onclick: setView(v) });
   box.append(h("div", { class: "card", style: "display:flex;gap:8px;align-items:center;flex-wrap:wrap" }, h("span", { class: "sub", text: "Afficher :" }), vbtn("cat", "Par catégorie"), vbtn("prio", "Par priorité")));
   const PL = { 1: "🔴 P1", 2: "🟠 P2", 3: "🟡 P3", 4: "⚪ P4", 0: "" };
-  const row = (it, showGroup) => h("details", { class: "ms" + (it.done ? " done" : ""), open: !it.done && it.detail.length ? "" : null },
-    h("summary", {}, h("button", { class: "msbox", type: "button", title: "Marquer comme fait", "aria-label": "Marquer comme fait : " + it.text, onclick: ev => { ev.preventDefault(); ev.stopPropagation(); validateMission(it.id); } }),
-      !showGroup && it.priority ? h("span", { class: "sub", text: PL[it.priority] + " " }) : null, h("span", { text: it.text }), showGroup && it.group ? h("span", { class: "sub", text: " · " + it.group }) : null),
-    it.detail.length ? h("div", { class: "sub" }, ...it.detail.map(d => h("p", { text: d }))) : null);
+  const dis = (btn, why) => { btn.disabled = true; btn.title = why; btn.style.opacity = ".35"; btn.style.cursor = "not-allowed"; return btn; };
+  const check = (it, label) => h("button", { class: "msbox", type: "button", title: "Marquer comme fait", "aria-label": "Marquer comme fait : " + label, onclick: ev => { ev.preventDefault(); ev.stopPropagation(); validateMission(it.id); } });
+  const subRow = (s) => {
+    const cb = s.done ? h("span", { class: "sub", text: "✓ ", style: "margin-right:6px" }) : (s.locked ? dis(check(s, s.text), "Disponible quand l'étape précédente est validée") : check(s, s.text));
+    return h("div", { style: "display:flex;gap:8px;align-items:flex-start;margin:6px 0 6px 6px;" + (s.locked ? "opacity:.5" : "") },
+      cb, h("div", {}, h("span", { style: s.done ? "text-decoration:line-through;opacity:.6" : "", text: (s.locked ? "🔒 " : "") + s.text }),
+        !s.locked && !s.done && s.detail.length ? h("div", { class: "sub" }, ...s.detail.map(d => h("p", { text: d }))) : null));
+  };
+  const row = (it, showGroup) => {
+    const subs = it.subs || [], nd = subs.filter(s => s.done).length;
+    const mainBox = check(it, it.text);
+    if (subs.length && !it.ready) dis(mainBox, "Termine d'abord les étapes ci-dessous");
+    return h("details", { class: "ms" + (it.done ? " done" : ""), open: !it.done && (it.detail.length || subs.length) ? "" : null },
+      h("summary", {}, mainBox,
+        !showGroup && it.priority ? h("span", { class: "sub", text: PL[it.priority] + " " }) : null, h("span", { text: it.text }),
+        subs.length ? h("span", { class: "sub", text: " · " + nd + "/" + subs.length + " étapes" }) : null,
+        showGroup && it.group ? h("span", { class: "sub", text: " · " + it.group }) : null),
+      it.detail.length ? h("div", { class: "sub" }, ...it.detail.map(d => h("p", { text: d }))) : null,
+      subs.length ? h("div", { style: "margin-top:6px;border-left:2px solid var(--line, #444);padding-left:10px" }, ...subs.map(subRow)) : null);
+  };
   if (view === "cat") {
     for (const g of j.groups) {
       const items = g.items.filter(i => !i.done).sort((a, b) => (a.priority || 9) - (b.priority || 9));

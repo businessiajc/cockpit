@@ -953,6 +953,35 @@ class TestMissions(unittest.TestCase):
             self.assertTrue(os.path.isfile(os.path.join(d, "MISSIONS_FAITES.jsonl")))
             self.assertEqual(os.path.normpath(server.find_up(sub, "ABSENT.md")), os.path.normpath(os.path.join(sub, "ABSENT.md")))
 
+    def test_sous_taches_sequentielles(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "MISSIONS.md")
+            with open(p, "w", encoding="utf-8", newline="") as f:
+                f.write("## G\n- [ ] [P2] Principale\n  Detail de la principale\n  - [ ] Etape un\n    Detail etape un\n  - [ ] Etape deux\n  - [ ] Etape trois\n- [ ] [P3] Autre\n")
+            r = server.load_missions(p)
+            it = r["groups"][0]["items"]
+            self.assertEqual([i["text"] for i in it], ["Principale", "Autre"])
+            subs = it[0]["subs"]
+            self.assertEqual([(s["text"], s["locked"], s["done"]) for s in subs],
+                             [("Etape un", False, False), ("Etape deux", True, False), ("Etape trois", True, False)])
+            self.assertEqual(subs[0]["detail"], ["Detail etape un"])
+            self.assertEqual(it[0]["detail"], ["Detail de la principale"])
+            self.assertFalse(it[0]["ready"])
+            self.assertTrue(it[1]["ready"])
+            # une etape verrouillee ou la mission non terminee ne se valident pas
+            self.assertIsNone(server.mark_mission_done(d, subs[1]["id"]))
+            self.assertIsNone(server.mark_mission_done(d, it[0]["id"]))
+            # dans l'ordre : ca marche et ca debloque la suivante
+            self.assertEqual(server.mark_mission_done(d, subs[0]["id"]), "Etape un")
+            subs = server.load_missions(p)["groups"][0]["items"][0]["subs"]
+            self.assertEqual([(s["done"], s["locked"]) for s in subs], [(True, False), (False, False), (False, True)])
+            self.assertEqual(server.mark_mission_done(d, subs[1]["id"]), "Etape deux")
+            self.assertEqual(server.mark_mission_done(d, subs[2]["id"]), "Etape trois")
+            it = server.load_missions(p)["groups"][0]["items"]
+            self.assertTrue(it[0]["ready"])
+            self.assertEqual(server.mark_mission_done(d, it[0]["id"]), "[P2] Principale")
+            self.assertEqual([i["text"] for i in server.load_missions(p)["groups"][0]["items"]], ["Autre"])
+
     def test_cocher_ecrit_le_fichier_et_le_journal(self):
         with tempfile.TemporaryDirectory() as d:
             p = os.path.join(d, "MISSIONS.md")

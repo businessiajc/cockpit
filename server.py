@@ -299,9 +299,43 @@ def mission_id(text):
     return hashlib.sha1(text.strip().encode("utf-8")).hexdigest()[:10]
 
 
+def _indent(ln):
+    return len(ln) - len(ln.lstrip(" \t"))
+
+
+def sous_taches_bloquantes(lines, i):
+    """Vrai si la ligne i (case a cocher) ne peut pas encore etre validee :
+    - sous-tache (ligne indentee) : une sous-tache PRECEDENTE de la meme mission n'est pas faite ;
+    - mission principale : une de ses sous-taches n'est pas faite."""
+    cb = re.compile(r"^(\s*)[-*]\s+\[( |x|X)\]\s+")
+    m = cb.match(lines[i])
+    if not m:
+        return False
+    if _indent(lines[i]) >= 2:
+        k = i - 1
+        while k >= 0 and not lines[k].startswith("## "):
+            mk = cb.match(lines[k])
+            if mk and _indent(lines[k]) < 2:
+                break
+            if mk and mk.group(2) == " ":
+                return True
+            k -= 1
+        return False
+    k = i + 1
+    while k < len(lines) and not lines[k].startswith("## "):
+        mk = cb.match(lines[k])
+        if mk and _indent(lines[k]) < 2:
+            break
+        if mk and mk.group(2) == " ":
+            return True
+        k += 1
+    return False
+
+
 def mark_mission_done(root, mid):
-    """Coche « - [x] » la premiere mission non faite dont l'id correspond, dans MISSIONS.md du dossier suivi,
-    puis note l'evenement dans MISSIONS_FAITES.jsonl (l'agent le lit). Retourne le texte de la mission ou None."""
+    """Coche « - [x] » la premiere mission (ou sous-tache) non faite dont l'id correspond, dans MISSIONS.md du dossier suivi,
+    puis note l'evenement dans MISSIONS_FAITES.jsonl (l'agent le lit). Une sous-tache n'est validable que si les precedentes sont faites ;
+    une mission avec sous-taches seulement quand toutes sont faites. Retourne le texte coche ou None."""
     path = find_up(root, "MISSIONS.md")
     if not os.path.isfile(path) or not isinstance(mid, str) or not re.fullmatch(r"[0-9a-f]{10}", mid):
         return None
@@ -311,6 +345,8 @@ def mark_mission_done(root, mid):
     for i, ln in enumerate(lines):
         m = re.match(r"^(\s*[-*]\s+)\[ \](\s+)(.+?)(\r?)$", ln)
         if m and mission_id(m.group(3)) == mid:
+            if sous_taches_bloquantes([l.rstrip("\r") for l in lines], i):
+                return None
             lines[i] = m.group(1) + "[x]" + m.group(2) + m.group(3) + m.group(4)
             tmp = path + ".tmp"
             with open(tmp, "w", encoding="utf-8", newline="") as f:
@@ -325,7 +361,8 @@ def mark_mission_done(root, mid):
 
 def load_missions(path):
     """Lit MISSIONS.md a la racine du dossier suivi : titres « ## » = groupes, lignes « - [ ] » / « - [x] » = missions.
-    Les lignes indentees sous une mission sont son detail. Lecture seule."""
+    Les lignes indentees sous une mission sont son detail ; une case a cocher indentee (2 espaces ou plus) est une SOUS-TACHE :
+    elle ne se debloque que quand la precedente est faite, et la mission n'est validable qu'a la fin. Lecture seule."""
     res = {"found": False, "groups": [], "path": path, "error": None}
     if not os.path.isfile(path):
         return res
@@ -338,29 +375,48 @@ def load_missions(path):
         return res
     group = None
     last = None
+    last_sub = None
     for ln in lines:
         m = re.match(r"^##\s+(.+?)\s*$", ln)
         if m:
             group = {"title": clean(m.group(1), 80), "items": []}
             res["groups"].append(group)
             last = None
+            last_sub = None
             continue
-        m = re.match(r"^\s*[-*]\s+\[( |x|X)\]\s+(.+?)\s*$", ln)
+        m = re.match(r"^(\s*)[-*]\s+\[( |x|X)\]\s+(.+?)\s*$", ln)
         if m:
+            indent = len(m.group(1).replace("\t", "    "))
+            done = m.group(2).lower() == "x"
+            if indent >= 2:
+                if last is not None:
+                    last_sub = {"done": done, "id": mission_id(m.group(3)), "text": clean(m.group(3), 300), "detail": [], "locked": False}
+                    last["subs"].append(last_sub)
+                continue
+            last_sub = None
             if group is None:
                 group = {"title": "Missions", "items": []}
                 res["groups"].append(group)
-            if m.group(1).lower() == "x":      # mission validee : masquee dans la page (l'agent la voit dans le fichier)
+            if done:      # mission validee : masquee dans la page (l'agent la voit dans le fichier)
                 last = None
                 continue
-            pm = re.match(r"^\[P([1-4])\]\s*(.*)$", m.group(2))     # priorite : [P1] tres urgent ... [P4] plus tard ; sans etiquette = 0
-            last = {"done": False, "id": mission_id(m.group(2)), "priority": int(pm.group(1)) if pm else 0,
-                    "text": clean(pm.group(2) if pm else m.group(2), 300), "detail": [], "group": group["title"]}
+            pm = re.match(r"^\[P([1-4])\]\s*(.*)$", m.group(3))     # priorite : [P1] tres urgent ... [P4] plus tard ; sans etiquette = 0
+            last = {"done": False, "id": mission_id(m.group(3)), "priority": int(pm.group(1)) if pm else 0,
+                    "text": clean(pm.group(2) if pm else m.group(3), 300), "detail": [], "group": group["title"], "subs": [], "ready": True}
             group["items"].append(last)
             continue
-        if last is not None and ln.startswith(("  ", "	")) and ln.strip():
-            if len(last["detail"]) < 12:
-                last["detail"].append(clean(ln.strip(), 300))
+        if ln.strip() and ln.startswith(("  ", "\t")):
+            target = last_sub if (last_sub is not None and _indent(ln) >= 4) else last
+            if target is not None and len(target["detail"]) < 12:
+                target["detail"].append(clean(ln.strip(), 300))
+    for g in res["groups"]:
+        for it in g["items"]:
+            prev_ok = True
+            for s in it["subs"]:
+                s["locked"] = (not s["done"]) and not prev_ok
+                if not s["done"]:
+                    prev_ok = False
+            it["ready"] = all(s["done"] for s in it["subs"])
     return res
 
 
