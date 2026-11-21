@@ -939,6 +939,20 @@ class TestMissions(unittest.TestCase):
         self.assertEqual([(i["text"], i["priority"]) for i in it], [("Urgente", 1), ("Sans etiquette", 0), ("Tard", 4)])
         self.assertEqual(it[0]["group"], "G")
 
+    def test_missions_retrouvees_depuis_un_sous_dossier(self):
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, "MISSIONS.md"), "w", encoding="utf-8") as f:
+                f.write("## G\n- [ ] [P2] Une mission\n")
+            sub = os.path.join(d, "produits", "cockpit")
+            os.makedirs(sub)
+            p = server.find_up(sub, "MISSIONS.md")
+            self.assertEqual(os.path.normpath(p), os.path.normpath(os.path.join(d, "MISSIONS.md")))
+            self.assertEqual(len(server.load_missions(p)["groups"][0]["items"]), 1)
+            mid = server.load_missions(p)["groups"][0]["items"][0]["id"]
+            self.assertEqual(server.mark_mission_done(sub, mid), "[P2] Une mission")
+            self.assertTrue(os.path.isfile(os.path.join(d, "MISSIONS_FAITES.jsonl")))
+            self.assertEqual(os.path.normpath(server.find_up(sub, "ABSENT.md")), os.path.normpath(os.path.join(sub, "ABSENT.md")))
+
     def test_cocher_ecrit_le_fichier_et_le_journal(self):
         with tempfile.TemporaryDirectory() as d:
             p = os.path.join(d, "MISSIONS.md")

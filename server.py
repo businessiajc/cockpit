@@ -278,6 +278,21 @@ STATUS_LABELS = {"running": "En cours", "done": "Terminé", "planned": "Planifi�
                  "failed": "Échec", "paused": "En pause", "unknown": "État inconnu"}
 
 
+def find_up(root, name, levels=3):
+    """Chemin de `name` dans root, sinon dans le plus proche dossier parent (jusqu'a `levels` niveaux) qui le contient.
+    Corrige le cas ou le dossier de la session a change (ex. sous-dossier du projet) : le fichier reste trouve."""
+    d = os.path.abspath(root)
+    for _ in range(levels + 1):
+        c = os.path.join(d, name)
+        if os.path.isfile(c):
+            return c
+        parent = os.path.dirname(d)
+        if parent == d or is_drive_root(parent):
+            break
+        d = parent
+    return os.path.join(root, name)
+
+
 def mission_id(text):
     """Identifiant court et stable d'une mission, calcule sur son texte."""
     import hashlib
@@ -287,7 +302,7 @@ def mission_id(text):
 def mark_mission_done(root, mid):
     """Coche « - [x] » la premiere mission non faite dont l'id correspond, dans MISSIONS.md du dossier suivi,
     puis note l'evenement dans MISSIONS_FAITES.jsonl (l'agent le lit). Retourne le texte de la mission ou None."""
-    path = os.path.join(root, "MISSIONS.md")
+    path = find_up(root, "MISSIONS.md")
     if not os.path.isfile(path) or not isinstance(mid, str) or not re.fullmatch(r"[0-9a-f]{10}", mid):
         return None
     with open(path, "r", encoding="utf-8-sig", newline="") as f:
@@ -301,7 +316,7 @@ def mark_mission_done(root, mid):
             with open(tmp, "w", encoding="utf-8", newline="") as f:
                 f.write("\n".join(lines))
             os.replace(tmp, path)
-            with open(os.path.join(root, "MISSIONS_FAITES.jsonl"), "a", encoding="utf-8") as f:
+            with open(os.path.join(os.path.dirname(path), "MISSIONS_FAITES.jsonl"), "a", encoding="utf-8") as f:
                 f.write(json.dumps({"date": datetime.now().isoformat(timespec="seconds"), "id": mid,
                                     "mission": clean(m.group(3), 300)}, ensure_ascii=False) + "\n")
             return m.group(3)
@@ -1261,12 +1276,12 @@ def make_handler(live, ctx, index_path):
                         return self._send(404, {"error": "introuvable ou interdit"})
                     return self._send(200, r)
                 if u.path == "/api/agents":
-                    reg = load_agents_file(os.path.join(root, "AGENTS.json"))
+                    reg = load_agents_file(find_up(root, "AGENTS.json"))
                     cards = merge_agents(reg["agents"], live.detected(), datetime.now())
                     return self._send(200, {"found": reg["found"], "error": reg["error"],
                                             "path": reg["path"], "cards": cards})
                 if u.path == "/api/missions":
-                    return self._send(200, load_missions(os.path.join(root, "MISSIONS.md")))
+                    return self._send(200, load_missions(find_up(root, "MISSIONS.md")))
                 if u.path == "/api/tree":
                     return self._send(200, build_tree(root))
                 if u.path == "/api/file":
